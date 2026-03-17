@@ -1,0 +1,11 @@
+pandas==2.2.1
+numpy==1.26.4
+ccxt==4.2.58
+yfinance==0.2.37
+requests==2.31.0
+schedule==1.2.1
+python-dotenv==1.0.1
+pytz==2024.1
+fredapi==0.5.1
+pytest==8.0.2
+pytest-mock==3.12.0

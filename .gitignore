@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+env/
+venv/
+
+# Security
+.env
+
+# Data & OS
+data/*.json
+!data/.gitkeep
+.DS_Store
+
+# Docker
+.docker/

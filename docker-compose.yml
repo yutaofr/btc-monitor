@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  tests:
+    build: .
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    command: pytest tests/unit
