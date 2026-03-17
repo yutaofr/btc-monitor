@@ -8,6 +8,7 @@ class Config:
     # API Keys
     FRED_API_KEY = os.getenv("FRED_API_KEY")
     COINGLASS_API_KEY = os.getenv("COINGLASS_API_KEY")
+    TRADIER_API_TOKEN = os.getenv("TRADIER_API_TOKEN")
     
     # Notification Settings
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")

@@ -8,6 +8,7 @@ class IndicatorResult:
     weight: float = 1.0
     details: Dict[str, Any] = field(default_factory=dict)
     description: str = ""
+    is_valid: bool = True
 
 def calculate_rsi(series, period=14):
     """Utility to calculate RSI for a given series."""

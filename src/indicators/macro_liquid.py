@@ -13,7 +13,7 @@ class MacroIndicator:
         """
         df = self.fetcher.get_net_liquidity()
         if df is None or len(df) < 2:
-            return IndicatorResult("Net_Liquidity", 0, description="Insufficient data")
+            return IndicatorResult("Net_Liquidity", 0, description="Insufficient data", is_valid=False)
 
         # Calculate momentum (Change over the last 2 records)
         current_liq = df["net_liquidity"].iloc[-1]
@@ -45,7 +45,7 @@ class MacroIndicator:
         """
         yields = self.fetcher.get_us10y()
         if yields is None or len(yields) < 5:
-            return IndicatorResult("Yields", 0, description="Insufficient data")
+            return IndicatorResult("Yields", 0, description="Insufficient data", is_valid=False)
 
         curr_yield = yields.iloc[-1]
         prev_yield = yields.iloc[-5] # Week over Week

@@ -48,9 +48,8 @@ class StrategyEngine:
         total_weight = 0.0
         
         for res in results:
-            # We treat score=0 as potentially missing/neutral, 
-            # but here specifically we exclude "Fetch Error" or explicit invalid markers
-            if "Insufficient data" in res.description or "Fetch error" in res.description:
+            # Only include valid results in the weighted sum and denominator
+            if not res.is_valid:
                 continue
             
             valid_weighted_sum += res.score * res.weight
@@ -65,7 +64,7 @@ class StrategyEngine:
 
     def run_strategy_cycle(self, force_buy=False):
         """
-        Main execution cycle for a Monday evaluation.
+        Main execution cycle for a market evaluation.
         """
         # Ensure month is up-to-date
         self.tracker.update_for_new_month()

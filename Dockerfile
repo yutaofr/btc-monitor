@@ -17,5 +17,7 @@ COPY . .
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV TZ=Europe/Paris
+ENV PYTHONPATH=/app
 
-CMD ["python", "src/main.py"]
+# Start the evaluation script
+ENTRYPOINT ["python", "src/main.py"]

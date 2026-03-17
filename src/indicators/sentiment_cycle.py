@@ -31,7 +31,7 @@ class SentimentCycleIndicator:
             )
         except Exception as e:
             print(f"[ERROR] Failed to fetch Fear & Greed: {e}")
-            return IndicatorResult("FearGreed", 0, description="Fetch error")
+            return IndicatorResult("FearGreed", 0, description="Fetch error", is_valid=False)
 
     def get_cycle_position_score(self):
         """
@@ -40,7 +40,7 @@ class SentimentCycleIndicator:
         """
         df = self.fetcher.fetch_ohlcv(timeframe="1w", limit=250) # ~5 years
         if df is None or len(df) < 50:
-            return IndicatorResult("Cycle_Pos", 0, description="Insufficient data")
+            return IndicatorResult("Cycle_Pos", 0, description="Insufficient data", is_valid=False)
             
         ath = df['high'].max()
         curr = df['close'].iloc[-2]

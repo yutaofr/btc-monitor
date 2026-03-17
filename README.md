@@ -4,7 +4,9 @@
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
 [![Tests](https://img.shields.io/badge/tests-22%20passed-success.svg)](/tests/unit)
 
-**BTC Monitor** 是一款专为比特币长线投资者设计的量化决策支持系统。系统通过每周一次（巴黎时间周一晚9点）的深度市场扫描，结合9大核心维度的共振信号，自动判定当月定投的最佳时机，并提供牛市顶部的止盈/转配建议。
+**BTC Monitor** 是一款专为比特币长线投资者设计的量化决策支持系统。本系统为一个纯粹的评估核心工具，结合9大核心维度的共振信号，判定当月定投的最佳时机。
+> **注意**：本程序移除了内部常驻调度，它需要由外部调度系统（如 Linux Crontab 或 CI/CD）按需触发（建议每周一运行一次）。所有调用均通过 Docker 沙盒安全独立执行。
+
 
 ---
 
@@ -29,7 +31,7 @@
 ```text
 btc-monitor/
 ├── src/
-│   ├── main.py          # 主入口与调度器 (周一晚9点)
+│   ├── main.py          # 主入口 (单次执行评估)
 │   ├── config.py        # 环境变量与阈值配置
 │   ├── indicators/      # 因子计算逻辑 (Technical, Macro, ETF等)
 │   ├── strategy/        # 归一化打分与决策引擎
@@ -53,22 +55,26 @@ btc-monitor/
 2. 获取 [FRED API Key](https://fred.stlouisfed.org/docs/api/api_key.html) 并填入 `.env`。
 3. (可选) 配置 Telegram 通知 Token。
 
-### 3. 一键运行与测试
+### 3. 构建与运行 (作为独立工具)
 
-**执行即时诊断 (Dry-run):**
+**构建镜像 (只需执行一次):**
 ```bash
-docker run --rm -v $(pwd):/app -w /app python:3.12-slim bash -c "pip install -r requirements.txt && PYTHONPATH=. python src/main.py --now"
+docker build -t btc-monitor .
 ```
 
-**运行所有单元测试:**
+**运行评估 (黑盒调用):**
 ```bash
-docker run --rm -v $(pwd):/app -w /app python:3.12-slim bash -c "pip install -r requirements.txt && PYTHONPATH=. pytest tests/unit"
+docker run --rm --env-file .env -v $(pwd)/data:/app/data btc-monitor
+```
+> **注意**: 
+> 1. 通过 `--env-file .env` 注入 API 密钥。
+> 2. 通过 `-v $(pwd)/data:/app/data` 挂载本地目录以持久化 `state.json` (记录运行历史与结转额度)。
+
+**运行单元测试:**
+```bash
+docker run --rm btc-monitor pytest tests/unit
 ```
 
-**后台持续运行 (生产模式):**
-```bash
-docker-compose up -d app
-```
 
 ---
 

@@ -14,7 +14,7 @@ class TechnicalIndicator:
         """
         df_weekly = self.fetcher.fetch_ohlcv(timeframe="1w", limit=210)
         if df_weekly is None or len(df_weekly) < 200:
-            return IndicatorResult("200WMA", 0, description="Insufficient data")
+            return IndicatorResult("200WMA", 0, description="Insufficient data", is_valid=False)
 
         # Use index -2 to avoid the currently forming weekly bar (index -1)
         confirmed_close = df_weekly.iloc[-2]['close']
@@ -45,7 +45,7 @@ class TechnicalIndicator:
         """
         df_daily = self.fetcher.fetch_ohlcv(timeframe="1d", limit=750)
         if df_daily is None or len(df_daily) < 700:
-             return IndicatorResult("Pi_Cycle", 0, description="Insufficient data")
+             return IndicatorResult("Pi_Cycle", 0, description="Insufficient data", is_valid=False)
 
         sma_111 = df_daily['close'].rolling(window=111).mean().iloc[-1]
         sma_350_x2 = df_daily['close'].rolling(window=350).mean().iloc[-1] * 2
@@ -72,7 +72,7 @@ class TechnicalIndicator:
         """
         df_weekly = self.fetcher.fetch_ohlcv(timeframe="1w", limit=50)
         if df_weekly is None or len(df_weekly) < 30:
-            return IndicatorResult("RSI_Div", 0, description="Insufficient data")
+            return IndicatorResult("RSI_Div", 0, description="Insufficient data", is_valid=False)
             
         closes = df_weekly['close'].iloc[:-1] # Use confirmed ones
         rsi = calculate_rsi(closes)
