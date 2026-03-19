@@ -19,5 +19,6 @@ ENV PYTHONUNBUFFERED=1
 ENV TZ=Europe/Paris
 ENV PYTHONPATH=/app
 
-# Start the evaluation script
-ENTRYPOINT ["python", "src/main.py"]
+# Default runtime command. Can be overridden for tests/backtests without
+# reinstalling dependencies on every container start.
+CMD ["python", "src/main.py"]

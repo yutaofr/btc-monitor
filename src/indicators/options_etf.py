@@ -135,6 +135,21 @@ class OptionsETFIndicator:
     def _is_last_friday(self, date_value):
         return date_value.weekday() == 4 and (date_value + dt.timedelta(days=7)).month != date_value.month
 
+    def _as_research_only(self, result):
+        description = result.description or ""
+        if not description.lower().startswith("research-only"):
+            description = f"Research-only: {description}" if description else "Research-only"
+        details = dict(result.details)
+        details["research_only"] = True
+        return IndicatorResult(
+            name=result.name,
+            score=result.score,
+            weight=result.weight,
+            details=details,
+            description=description,
+            is_valid=False,
+        )
+
     def _select_target_expiry(self, instruments, min_days_ahead=7):
         now = dt.datetime.utcnow()
         now_ts = int(now.timestamp() * 1000)
@@ -310,11 +325,14 @@ class OptionsETFIndicator:
         try:
             primary = self._get_btc_options_wall_score()
             if primary.is_valid:
-                return primary
+                return self._as_research_only(primary)
             fallback = self._get_etf_options_wall_score()
-            return fallback if fallback.is_valid else primary
+            chosen = fallback if fallback.is_valid else primary
+            return self._as_research_only(chosen)
         except Exception:
-            return IndicatorResult("Options_Wall", 0, description="Options source blocked", is_valid=False)
+            return self._as_research_only(
+                IndicatorResult("Options_Wall", 0, description="Options source blocked", is_valid=False)
+            )
 
     def get_etf_flow_divergence_score(self, etf_symbol="IBIT"):
         """Detect divergence using multiple fallbacks."""
@@ -328,7 +346,9 @@ class OptionsETFIndicator:
                 price_etf, vol_etf = self._fetch_etf_history_fallback(etf_symbol)
 
             if price_etf is None or price_etf == 0 or df_btc is None:
-                return IndicatorResult("ETF_Flow", 0, description="ETF data unavailable", is_valid=False)
+                return self._as_research_only(
+                    IndicatorResult("ETF_Flow", 0, description="ETF data unavailable", is_valid=False)
+                )
 
             price_trend = df_btc['close'].iloc[-1] / df_btc['close'].iloc[-4]
             
@@ -340,14 +360,16 @@ class OptionsETFIndicator:
                 score = 0
                 desc = f"ETF Price: {price_etf}, Vol: {vol_etf:,.0f}"
                 
-            return IndicatorResult(
+            return self._as_research_only(IndicatorResult(
                 name="ETF_Flow",
                 score=score,
                 details={"etf_price": price_etf, "vol": vol_etf},
                 description=desc
-            )
+            ))
         except Exception as e:
-            return IndicatorResult("ETF_Flow", 0, description=f"ETF parsing error", is_valid=False)
+            return self._as_research_only(
+                IndicatorResult("ETF_Flow", 0, description="ETF parsing error", is_valid=False)
+            )
 
 if __name__ == "__main__":
     indicator = OptionsETFIndicator()

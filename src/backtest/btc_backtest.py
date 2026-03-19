@@ -9,7 +9,24 @@ from fredapi import Fred
 from ccxt import binance as ccxt_binance
 
 from src.config import Config
+from src.fetchers.blockchain_fetcher import BlockchainFetcher
 from src.indicators.base import IndicatorResult, calculate_rsi
+from src.strategy.engine import StrategyEngine
+from src.strategy.execution_engine import ExecutionEngine
+
+
+class _BacktestTracker:
+    def __init__(self):
+        self.state = {
+            "current_month": "backtest",
+            "accumulated_budget_multiplier": 1.0,
+        }
+
+    def update_for_new_month(self):
+        return False
+
+    def record_action(self, *args, **kwargs):
+        return None
 
 
 def _load_btc_daily(start=None, end=None):
@@ -163,17 +180,44 @@ def _load_macro_series():
     return net_liq, yields_w
 
 
-def _calculate_final_score(results):
-    valid_weighted_sum = 0.0
-    total_weight = 0.0
-    for res in results:
-        if not res.is_valid:
-            continue
-        valid_weighted_sum += res.score * res.weight
-        total_weight += res.weight
-    if total_weight == 0:
-        return np.nan
-    return round((valid_weighted_sum / total_weight) * 10, 2)
+def _load_onchain_series():
+    fetcher = BlockchainFetcher()
+    market_price_df = fetcher.fetch_chart("market-price", timespan="all")
+    miners_revenue_df = fetcher.get_miners_revenue(timespan="all")
+
+    market_price = None
+    miners_revenue = None
+
+    if market_price_df is not None and not market_price_df.empty:
+        market_price = market_price_df["value"].resample("D").last().ffill()
+
+    if miners_revenue_df is not None and not miners_revenue_df.empty:
+        miners_revenue = miners_revenue_df["value"].resample("D").last().ffill()
+
+    return market_price, miners_revenue
+
+
+def _prepare_valuation_series(weekly_index):
+    market_price, miners_revenue = _load_onchain_series()
+
+    mvrv_weekly = None
+    puell_weekly = None
+
+    if market_price is not None and not market_price.empty:
+        mvrv_daily = pd.DataFrame({"price": market_price})
+        mvrv_daily["ma_730"] = mvrv_daily["price"].rolling(window=730).mean()
+        mvrv_weekly = mvrv_daily.resample("W-FRI").last().reindex(weekly_index).ffill()
+
+    if miners_revenue is not None and not miners_revenue.empty:
+        puell_daily = pd.DataFrame({"revenue": miners_revenue})
+        puell_daily["ma_365"] = puell_daily["revenue"].rolling(window=365).mean()
+        puell_weekly = puell_daily.resample("W-FRI").last().reindex(weekly_index).ffill()
+
+    return mvrv_weekly, puell_weekly
+
+
+def _calculate_final_score(results, score_engine):
+    return score_engine.calculate_final_score(results)
 
 
 def _score_technical(weekly, pi_weekly, rsi_weekly, idx):
@@ -315,6 +359,78 @@ def _score_macro(net_liq, yields, idx):
     return results
 
 
+def _score_valuation(mvrv_weekly, puell_weekly, idx):
+    results = []
+
+    if mvrv_weekly is None:
+        results.append(IndicatorResult("MVRV_Proxy", 0, description="Missing market-price history", is_valid=False))
+    else:
+        curr_price = mvrv_weekly["price"].iloc[idx]
+        cost_basis_proxy = mvrv_weekly["ma_730"].iloc[idx]
+
+        if pd.isna(curr_price) or pd.isna(cost_basis_proxy) or cost_basis_proxy == 0:
+            results.append(IndicatorResult("MVRV_Proxy", 0, description="Insufficient data for 2yr MA", is_valid=False))
+        else:
+            mvrv_proxy = curr_price / cost_basis_proxy
+            if mvrv_proxy <= 0.9:
+                score = 10.0
+            elif mvrv_proxy >= 3.7:
+                score = -10.0
+            elif mvrv_proxy <= 1.2:
+                score = 8.0
+            else:
+                score = 8.0 - (mvrv_proxy - 1.2) * (18.0 / 2.5)
+            results.append(
+                IndicatorResult(
+                    name="MVRV_Proxy",
+                    score=round(score, 2),
+                    weight=1.5,
+                    details={"mvrv_proxy": round(mvrv_proxy, 4), "cost_basis": round(cost_basis_proxy, 2)},
+                    description=f"Price is {mvrv_proxy:.2f}x of 2-year cost basis proxy",
+                )
+            )
+
+    if puell_weekly is None:
+        results.append(IndicatorResult("Puell_Multiple", 0, description="Missing miners revenue history", is_valid=False))
+    else:
+        revenue = puell_weekly["revenue"].iloc[idx]
+        ma_365 = puell_weekly["ma_365"].iloc[idx]
+
+        if pd.isna(revenue) or pd.isna(ma_365) or ma_365 == 0:
+            results.append(IndicatorResult("Puell_Multiple", 0, description="Insufficient revenue history", is_valid=False))
+        else:
+            puell = revenue / ma_365
+            if puell <= 0.5:
+                score = 10.0
+            elif puell >= 4.0:
+                score = -10.0
+            elif puell <= 1.0:
+                score = 10.0 - (puell - 0.5) * 16.0
+            else:
+                score = 2.0 - (puell - 1.0) * 4.0
+            results.append(
+                IndicatorResult(
+                    name="Puell_Multiple",
+                    score=round(score, 2),
+                    weight=1.2,
+                    details={"puell": round(puell, 4), "revenue": round(revenue, 2)},
+                    description=f"Puell Multiple is {puell:.2f} ({'low' if puell < 1.0 else 'high'} revenue relative to year avg)",
+                )
+            )
+
+    results.append(
+        IndicatorResult(
+            "Production_Cost",
+            0,
+            details={"research_only": True},
+            description="Research-only: historical production cost unavailable",
+            is_valid=False,
+        )
+    )
+
+    return results
+
+
 def _score_missing(name, description):
     return IndicatorResult(name, 0, description=description, is_valid=False)
 
@@ -341,29 +457,54 @@ def run_backtest(start=None, end=None, output_dir="data/backtest"):
     if yields is not None:
         yields = yields.reindex(weekly.index).ffill()
 
+    mvrv_weekly, puell_weekly = _prepare_valuation_series(weekly.index)
+    score_engine = StrategyEngine(tracker=_BacktestTracker())
+    execution_engine = ExecutionEngine()
+
     records = []
     desired_position = 0
+    current_month = None
+    monthly_action_count = 0
 
     for idx, timestamp in enumerate(weekly.index):
+        month_str = timestamp.strftime("%Y-%m")
+        if month_str != current_month:
+            current_month = month_str
+            monthly_action_count = 0
+
         results = []
         results.extend(_score_technical(weekly, pi_weekly, rsi_weekly, idx))
         results.extend(_score_macro(net_liq, yields, idx))
+        results.extend(_score_valuation(mvrv_weekly, puell_weekly, idx))
         results.append(_score_missing("FearGreed", "Historical FNG unavailable"))
         results.append(_score_missing("Options_Wall", "Historical options unavailable"))
         results.append(_score_missing("ETF_Flow", "Historical ETF flow unavailable"))
 
-        final_score = _calculate_final_score(results)
+        split_results = score_engine.split_results(results)
+        strategic_score = score_engine.strategic_engine.calculate_score(split_results["strategic"])
+        tactical_score = score_engine.tactical_engine.calculate_score(split_results["tactical"])
+        final_score = _calculate_final_score(results, score_engine)
+        decision = execution_engine.decide(
+            strategic_score,
+            tactical_score,
+            available_budget_multiplier=1.0,
+            monthly_action_count=monthly_action_count,
+        )
 
         if not np.isnan(final_score):
-            if final_score >= Config.THRESHOLD_BUY:
+            if decision.action in ("BUY", "PARTIAL_BUY"):
                 desired_position = 1
-            elif final_score <= Config.THRESHOLD_SELL:
+                monthly_action_count += 1
+            elif decision.action == "ALERT":
                 desired_position = 0
 
         records.append(
             {
                 "date": timestamp,
                 "score": final_score,
+                "strategic_score": strategic_score,
+                "tactical_score": tactical_score,
+                "action": decision.action,
                 "desired_position": desired_position,
                 "weekly_open": weekly["open"].iloc[idx],
                 "weekly_close": weekly["close"].iloc[idx],

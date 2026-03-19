@@ -1,15 +1,13 @@
 services:
   app:
     build: .
-    volumes:
-      - .:/app
     env_file:
       - .env
+    volumes:
+      - ./data:/app/data
 
   tests:
     build: .
-    volumes:
-      - .:/app
     env_file:
       - .env
-    command: pytest tests/unit
+    command: ["pytest", "tests/unit"]
