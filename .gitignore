@@ -12,8 +12,10 @@ venv/
 
 # Data & OS
 data/*.json
+data/*.csv
 !data/.gitkeep
 .DS_Store
+*.swp
 
 # Docker
 .docker/
