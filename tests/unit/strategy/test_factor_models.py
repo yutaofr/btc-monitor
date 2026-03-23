@@ -46,6 +46,8 @@ def test_recommendation_initialization():
         missing_required_blocks=[],
         missing_required_factors=[],
         blocked_reasons=[],
+        freshness_warnings=[],
+        excluded_research_factors=[],
         summary="Clear ADD signal."
     )
     assert rec.action == "ADD"

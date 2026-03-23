@@ -6,9 +6,9 @@ from src.indicators.miner_cycle import Hash_Ribbon
 def test_hash_ribbon_bullish_recovery():
     # Simulate Hash Ribbon recovery: 30d moving average crosses above 60d moving average
     # after a period of being below (capitulation).
-    dates = pd.date_range(end=datetime.now(), periods=10, freq="D")
-    data = {"hashrate": [80, 85, 90, 85, 80, 95, 105, 110, 115, 120]}
-    df = pd.DataFrame(data, index=dates)
+    dates = pd.date_range(end=datetime.now(), periods=65, freq="D")
+    base_data = [80] * 35 + [85, 90, 85, 80, 95] * 6 # Pad to past 60 to allow crossing
+    df = pd.DataFrame({"hashrate": base_data}, index=dates)
     
     indicator = Hash_Ribbon()
     result = indicator.evaluate(df)
@@ -19,9 +19,9 @@ def test_hash_ribbon_bullish_recovery():
 
 def test_hash_ribbon_capitulation_bearish():
     # Simulate Hash Ribbon capitulation: 30d crosses below 60d
-    dates = pd.date_range(end=datetime.now(), periods=10, freq="D")
-    data = {"hashrate": [120, 115, 110, 105, 95, 80, 85, 90, 85, 80]}
-    df = pd.DataFrame(data, index=dates)
+    dates = pd.date_range(end=datetime.now(), periods=65, freq="D")
+    base_data = [120] * 35 + [115, 110, 105, 95, 80] * 6 # Pad to past 60 to allow crossing
+    df = pd.DataFrame({"hashrate": base_data}, index=dates)
     
     indicator = Hash_Ribbon()
     result = indicator.evaluate(df)

@@ -1,13 +1,82 @@
 import pandas as pd
 from src.backtest.metrics import calculate_forward_returns, evaluate_precision
 
-def evaluate_history() -> pd.DataFrame:
-    """Mock stub to be replaced or patched. Usually runs AdvisoryEngine over history."""
-    return pd.DataFrame()
+from src.strategy.advisory_engine import AdvisoryEngine
+from src.strategy.factor_models import FactorObservation
+from src.backtest.btc_backtest import (
+    _load_btc_daily, _to_weekly_ohlcv, calculate_rsi, 
+    _load_macro_series, _prepare_valuation_series, 
+    _score_technical, _score_macro, _score_valuation, _score_missing
+)
 
 def fetch_prices() -> pd.Series:
-    """Mock stub to be replaced or patched."""
-    return pd.Series(dtype=float)
+    daily, _ = _load_btc_daily()
+    return daily["close"]
+
+def evaluate_history() -> pd.DataFrame:
+    """Runs AdvisoryEngine over history."""
+    daily, _ = _load_btc_daily()
+    weekly = _to_weekly_ohlcv(daily)
+    
+    daily_close = daily["close"]
+    pi_daily = pd.DataFrame({
+        "sma111": daily_close.rolling(window=111).mean(),
+        "sma350x2": daily_close.rolling(window=350).mean() * 2
+    })
+    pi_weekly = pi_daily.resample("W-FRI").last().reindex(weekly.index).ffill()
+    rsi_weekly = calculate_rsi(weekly["close"])
+
+    net_liq, yields = _load_macro_series()
+    if net_liq is not None:
+        net_liq = net_liq.reindex(weekly.index).ffill()
+    if yields is not None:
+        yields = yields.reindex(weekly.index).ffill()
+
+    mvrv_weekly, puell_weekly = _prepare_valuation_series(weekly.index)
+    
+    engine = AdvisoryEngine()
+    records = []
+
+    for idx, timestamp in enumerate(weekly.index):
+        results = []
+        results.extend(_score_technical(weekly, pi_weekly, rsi_weekly, idx))
+        results.extend(_score_macro(net_liq, yields, idx))
+        results.extend(_score_valuation(mvrv_weekly, puell_weekly, idx))
+        results.append(_score_missing("FearGreed", "Historical FNG unavailable"))
+        results.append(_score_missing("Options_Wall", "Historical options unavailable"))
+        results.append(_score_missing("ETF_Flow", "Historical ETF flow unavailable"))
+        
+        observations = [
+            FactorObservation(
+                name=res.name,
+                score=res.score,
+                is_valid=res.is_valid,
+                confidence_penalty=10 if not res.is_valid else 0,
+                details=getattr(res, "details", {}),
+                description=getattr(res, "description", ""),
+                timestamp=timestamp,
+                freshness_ok=True,
+                blocked_reason=""
+            ) for res in results
+        ]
+        
+        rec = engine.evaluate(observations)
+        
+        records.append({
+            "date": timestamp,
+            "action": rec.action,
+            "confidence": rec.confidence,
+            "tactical_state": rec.tactical_state,
+            "strategic_regime": rec.strategic_regime,
+            "score": float(rec.confidence), # Mock equivalent for historical parity
+            "weekly_open": weekly["open"].iloc[idx],
+            "weekly_close": weekly["close"].iloc[idx]
+        })
+
+    return pd.DataFrame(records)
+
+
+import os
 
 def generate_advisory_backtest() -> dict:
     """
@@ -59,11 +128,18 @@ def generate_advisory_backtest() -> dict:
     precision_metrics = {}
     confidence_buckets = {}
     
+    # Persist the generated artifact
+    output_dir = "data/backtest"
+    os.makedirs(output_dir, exist_ok=True)
+    metrics_df.to_csv(os.path.join(output_dir, "advisory_backtest_result.csv"), index=False)
+    print(f"Advisory backtest generated ({len(metrics_df)} weeks of history). Artifact saved to {output_dir}/advisory_backtest_result.csv.")
+    
     return {
         "precision_metrics": precision_metrics,
         "confidence_buckets": confidence_buckets,
         "metrics_df": metrics_df
     }
+
 
 if __name__ == "__main__":
     generate_advisory_backtest()

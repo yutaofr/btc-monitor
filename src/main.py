@@ -1,19 +1,44 @@
 import argparse
 from datetime import datetime
 from src.strategy.engine import StrategyEngine
-from src.config import Config
+from src.strategy.advisory_engine import AdvisoryEngine
+from src.strategy.reporting import build_advisory_report
 
 def run_evaluation():
     """Trigger a full evaluation cycle and print/notify result."""
     print(f"[{datetime.now().isoformat()}] Starting Market Evaluation Snapshot...")
-    engine = StrategyEngine()
-    decision, report = engine.run_strategy_cycle()
+    
+    # Use StrategyEngine temporarily just to fetch the raw IndicatorResult list
+    # then map to FactorObservations for the new AdvisoryEngine
+    fetch_engine = StrategyEngine()
+    raw_results = fetch_engine.evaluate()
+    
+    from src.strategy.factor_models import FactorObservation
+    observations = [
+        FactorObservation(
+            name=res.name,
+            score=res.score,
+            is_valid=res.is_valid,
+            confidence_penalty=10 if not res.is_valid else 0,
+            details=getattr(res, "details", {}),
+            description=getattr(res, "description", ""),
+            timestamp=datetime.now(),
+            freshness_ok=True,
+            blocked_reason=""
+        ) for res in raw_results
+    ]
+    
+    advisory_engine = AdvisoryEngine()
+    recommendation = advisory_engine.evaluate(observations)
+    
+    curr_price = fetch_engine.tech.fetcher.get_current_price() or 0
+    report = build_advisory_report(recommendation, current_price=curr_price)
     
     print("-" * 30)
     print(report)
     print("-" * 30)
     
-    print(f"[{datetime.now().isoformat()}] Cycle Complete. Decision: {decision}")
+    print(f"[{datetime.now().isoformat()}] Cycle Complete. Decision: {recommendation.action}")
 
 def main():
     parser = argparse.ArgumentParser(description="BTC Monitor DCA & Position Management (Run-Once Tool)")

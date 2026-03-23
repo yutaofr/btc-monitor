@@ -14,6 +14,8 @@ def test_build_advisory_report_bullish():
         missing_required_blocks=[],
         missing_required_factors=[],
         blocked_reasons=[],
+        freshness_warnings=[],
+        excluded_research_factors=[],
         summary="Strong bullish confluence."
     )
     
@@ -37,6 +39,8 @@ def test_build_advisory_report_blocked():
         missing_required_blocks=["valuation"],
         missing_required_factors=["MVRV_Proxy"],
         blocked_reasons=["Missing required valuation block."],
+        freshness_warnings=[],
+        excluded_research_factors=[],
         summary="Insufficient evidence to proceed."
     )
     

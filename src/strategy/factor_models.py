@@ -41,4 +41,6 @@ class Recommendation:
     missing_required_blocks: List[str]
     missing_required_factors: List[str]
     blocked_reasons: List[str]
+    freshness_warnings: List[str]
+    excluded_research_factors: List[str]
     summary: str

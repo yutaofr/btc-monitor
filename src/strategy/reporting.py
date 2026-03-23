@@ -147,4 +147,15 @@ def build_advisory_report(rec, current_price: float = 0.0) -> str:
     else:
         lines.append("**Supporting Factors:** none")
         
+    if rec.conflicting_factors:
+        lines.append(f"**Conflicting Factors:** {', '.join(rec.conflicting_factors)}")
+        
+    if rec.freshness_warnings:
+        lines.append("\n## ⚠️ Freshness Warnings")
+        for warning in rec.freshness_warnings:
+            lines.append(f"- {warning}")
+            
+    if rec.excluded_research_factors:
+        lines.append(f"\n**Excluded Research Factors:** {', '.join(rec.excluded_research_factors)}")
+        
     return "\n".join(lines)

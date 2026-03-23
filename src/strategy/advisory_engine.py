@@ -21,14 +21,20 @@ class AdvisoryEngine:
         missing_required_add = []
         missing_required_reduce = []
         blocked_reasons = []
+        freshness_warnings = []
+        excluded_research = []
 
         for obs in observations:
             if not obs.is_valid:
                 continue
+            if not getattr(obs, "freshness_ok", True):
+                freshness_warnings.append(f"{obs.name} data is stale")
+                
             try:
                 definition = get_factor(obs.name)
                 # Hardening policy: research factors are completely ignored for action/confidence decisions
                 if definition.layer == "research":
+                    excluded_research.append(obs.name)
                     continue
                     
                 present_factors.add(obs.name)
@@ -82,21 +88,37 @@ class AdvisoryEngine:
             
             # Bound confidence between 0 and 100
             confidence = max(0, min(100, int(confidence)))
+            
+            # Check required factors against Registry
+            from src.strategy.factor_registry import get_all_factors
+            all_factors = get_all_factors()
+            missing_required_add = [f.name for f in all_factors if f.is_required_for_add and f.name not in present_factors]
+            missing_required_reduce = [f.name for f in all_factors if f.is_required_for_reduce and f.name not in present_factors]
 
             if strategic_regime == "BULLISH_ACCUMULATION" and is_valuation_bullish and not is_macro_bearish and not is_trend_bearish:
                 # Must have more than just 1 factor telling us to buy!
                 # If only 1 factor is bullish overall, fail (one-factor bullish cannot return ADD)
                 if len(bullish_factors) > 1:
-                    action = "ADD"
-                    summary = "Strong accumulation evidence."
+                    if missing_required_add:
+                        action = "HOLD"
+                        summary = f"Blocked ADD: Missing required factors ({', '.join(missing_required_add)})."
+                        blocked_reasons.append(f"Missing required ADD factors: {', '.join(missing_required_add)}")
+                    else:
+                        action = "ADD"
+                        summary = "Strong accumulation evidence."
             
             # REDUCE Gate
             elif (is_overheated) and not (tactical_state == "FAVORABLE_ADD"):
                 # Must have at least one non-price block confirming risk (e.g. macro or sentiment)
                 # To prevent 1-factor overheated
                 if len(overheated_factors) > 1 and (macro_avg <= -1.0 or sum(block_scores.get("sentiment_tactical", [0])) <= -1.0):
-                    action = "REDUCE"
-                    summary = "Overheating with confirmation."
+                    if missing_required_reduce:
+                        action = "HOLD"
+                        summary = f"Blocked REDUCE: Missing required factors ({', '.join(missing_required_reduce)})."
+                        blocked_reasons.append(f"Missing required REDUCE factors: {', '.join(missing_required_reduce)}")
+                    else:
+                        action = "REDUCE"
+                        summary = "Overheating with confirmation."
 
             # Confidence Downgrade
             if confidence < 60 and action in ["ADD", "REDUCE"]:
@@ -113,6 +135,8 @@ class AdvisoryEngine:
             missing_required_blocks=["valuation", "trend_cycle", "macro_liquidity"] if action == "INSUFFICIENT_DATA" else [],
             missing_required_factors=[],
             blocked_reasons=blocked_reasons,
+            freshness_warnings=freshness_warnings,
+            excluded_research_factors=excluded_research,
             summary=summary
         )
 
