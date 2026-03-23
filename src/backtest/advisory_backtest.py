@@ -14,7 +14,7 @@ from src.backtest.advisory_history import (
     _prepare_fng_series
 )
 
-def generate_advisory_backtest():
+def generate_advisory_backtest(output_dir="data/backtest"):
     """Main entry point for authentic historical advisory validation."""
     print("Loading authentic daily price data from Binance...")
     daily_df, source = _load_btc_daily()
@@ -101,14 +101,16 @@ def generate_advisory_backtest():
 
     # Save to CSV
     df = pd.DataFrame(records)
-    os.makedirs("data/backtest", exist_ok=True)
-    df.to_csv("data/backtest/advisory_backtest_result.csv", index=False)
+    os.makedirs(output_dir, exist_ok=True)
+    csv_path = os.path.join(output_dir, "advisory_backtest_result.csv")
+    df.to_csv(csv_path, index=False)
     
     # Generate report
-    _generate_performance_report(df, daily_df["close"])
+    report_path = os.path.join(output_dir, "advisory_performance_report.md")
+    _generate_performance_report(df, daily_df["close"], report_path)
     print(f"Backtest completed. Report saved to data/backtest/advisory_performance_report.md")
 
-def _generate_performance_report(df, full_prices):
+def _generate_performance_report(df, full_prices, report_path):
     """Generate the markdown performance report from REAL results."""
     # Add forward returns for multiple horizons (28, 84, 182 days)
     results_list = []
@@ -132,7 +134,7 @@ def _generate_performance_report(df, full_prices):
         
     metrics_df = pd.DataFrame(results_list)
     
-    with open("data/backtest/advisory_performance_report.md", "w") as f:
+    with open(report_path, "w") as f:
         f.write("# High-Confidence Advisory Performance Report\n")
         f.write(f"**Generated:** {pd.Timestamp.now()}\n")
         f.write(f"**History Length:** {len(df)} weeks\n\n")

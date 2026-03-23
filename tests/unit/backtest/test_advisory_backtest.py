@@ -17,8 +17,8 @@ def test_backtest_report_generation(mocker, tmp_path):
     mocker.patch("src.backtest.advisory_backtest._prepare_valuation_series", return_value=(None, None, None))
     mocker.patch("src.backtest.advisory_backtest._prepare_fng_series", return_value=None)
     
-    # Run the backtest
-    generate_advisory_backtest()
+    # Run the backtest to a temporary directory
+    generate_advisory_backtest(output_dir=str(tmp_path))
     
-    assert os.path.exists("data/backtest/advisory_backtest_result.csv")
-    assert os.path.exists("data/backtest/advisory_performance_report.md")
+    assert os.path.exists(os.path.join(str(tmp_path), "advisory_backtest_result.csv"))
+    assert os.path.exists(os.path.join(str(tmp_path), "advisory_performance_report.md"))
