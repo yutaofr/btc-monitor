@@ -1,5 +1,6 @@
 import requests
 import pandas as pd
+from datetime import datetime, timezone
 from src.fetchers.binance_fetcher import BinanceFetcher
 from src.indicators.base import IndicatorResult
 
@@ -27,7 +28,8 @@ class SentimentCycleIndicator:
                 name="FearGreed",
                 score=round(score, 2),
                 details={"value": val},
-                description=f"Fear & Greed Index is at {val} ({data['data'][0]['value_classification']})"
+                description=f"Fear & Greed Index is at {val} ({data['data'][0]['value_classification']})",
+                timestamp=datetime.now(timezone.utc)
             )
         except Exception as e:
             print(f"[ERROR] Failed to fetch Fear & Greed: {e}")
@@ -62,7 +64,8 @@ class SentimentCycleIndicator:
             name="Cycle_Pos",
             score=round(score, 2),
             details={"drawdown": round(drawdown, 4), "ath": ath},
-            description=f"Market is {abs(drawdown)*100:.1f}% off from ATH"
+            description=f"Market is {abs(drawdown)*100:.1f}% off from ATH",
+            timestamp=datetime.now(timezone.utc)
         )
 
 if __name__ == "__main__":

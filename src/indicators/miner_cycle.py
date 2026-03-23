@@ -1,4 +1,5 @@
 import pandas as pd
+from datetime import datetime, timezone
 from typing import Dict, Any
 from src.indicators.base import IndicatorResult
 
@@ -37,4 +38,11 @@ class Hash_Ribbon:
             "long_sma": float(latest_long)
         }
         
-        return IndicatorResult(name=self.name, score=score, is_valid=True, details=details, weight=1.0)
+        return IndicatorResult(
+            name=self.name, 
+            score=score, 
+            is_valid=True, 
+            details=details, 
+            weight=1.0,
+            timestamp=datetime.now(timezone.utc)
+        )

@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from src.strategy.advisory_engine import AdvisoryEngine
 from src.strategy.factor_models import FactorObservation
 
@@ -52,4 +52,34 @@ def test_timezone_mismatch():
     
     ts_stale_naive = datetime.now() - timedelta(hours=50)
     assert check_freshness(ts_stale_naive, 24, current_time=now_aware) is False
+
+def test_future_date_rejection():
+    """Verify that observations from the future are rejected as not fresh."""
+    from src.strategy.factor_utils import check_freshness
+    
+    now = datetime.now(timezone.utc)
+    future_ts = now + timedelta(hours=1)
+    
+    # Delta will be negative, should return False
+    assert check_freshness(future_ts, 24, current_time=now) is False
+
+def test_timezone_conversion_math():
+    """Verify that mathematical deltas work correctly after forced UTC conversion."""
+    from datetime import timezone, timedelta
+    from src.strategy.factor_utils import check_freshness
+    
+    # Create a 'now' in UTC
+    now_utc = datetime(2026, 3, 23, 12, 0, 0, tzinfo=timezone.utc)
+    
+    # Create a 'stale' time 25 hours ago, but naive
+    stale_naive = datetime(2026, 3, 22, 11, 0, 0) 
+    
+    # check_freshness should treat stale_naive as UTC if naive
+    # 12:00 (Today) - 11:00 (Yesterday) = 25 hours -> Stale for 24h TTL
+    assert check_freshness(stale_naive, 24, current_time=now_utc) is False
+    
+    # Create a 'fresh' time 23 hours ago, but naive
+    fresh_naive = datetime(2026, 3, 22, 13, 0, 0)
+    assert check_freshness(fresh_naive, 24, current_time=now_utc) is True
+
 

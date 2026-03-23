@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from datetime import datetime, timezone
 from src.fetchers.binance_fetcher import BinanceFetcher
 from src.indicators.base import IndicatorResult, calculate_rsi
 
@@ -34,7 +35,8 @@ class TechnicalIndicator:
             name="200WMA",
             score=round(score, 2),
             details={"close": confirmed_close, "200wma": wma_200, "ratio": ratio},
-            description=f"Price is {ratio:.2f}x of 200WMA"
+            description=f"Price is {ratio:.2f}x of 200WMA",
+            timestamp=datetime.now(timezone.utc)
         )
 
     def get_pi_cycle_score(self):
@@ -63,7 +65,8 @@ class TechnicalIndicator:
             name="Pi_Cycle",
             score=score,
             details={"111dma": sma_111, "350dma_x2": sma_350_x2},
-            description="Pi Cycle Top gap is healthy" if score > 0 else "Pi Cycle Top imminent"
+            description="Pi Cycle Top gap is healthy" if score > 0 else "Pi Cycle Top imminent",
+            timestamp=datetime.now(timezone.utc)
         )
 
     def get_rsi_divergence_score(self):
@@ -97,7 +100,8 @@ class TechnicalIndicator:
             name="RSI_Div",
             score=score,
             details={"curr_rsi": curr_rsi, "prev_rsi": prev_rsi},
-            description=desc
+            description=desc,
+            timestamp=datetime.now(timezone.utc)
         )
 
 if __name__ == "__main__":

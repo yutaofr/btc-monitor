@@ -1,4 +1,5 @@
 import pandas as pd
+from datetime import datetime, timezone
 from src.fetchers.fred_fetcher import FredFetcher
 from src.indicators.base import IndicatorResult
 
@@ -36,7 +37,8 @@ class MacroIndicator:
             name="Net_Liquidity",
             score=score,
             details={"change_pct": round(change_pct, 4), "current": current_liq},
-            description=f"Liquidity is {'expanding' if score > 0 else 'contracting'}"
+            description=f"Liquidity is {'expanding' if score > 0 else 'contracting'}",
+            timestamp=datetime.now(timezone.utc)
         )
 
     def get_yield_divergence_score(self):
@@ -67,7 +69,8 @@ class MacroIndicator:
             name="Yields",
             score=score,
             details={"current": curr_yield, "sma": sma, "regime": desc},
-            description=f"Yields are in a {desc}"
+            description=f"Yields are in a {desc}",
+            timestamp=datetime.now(timezone.utc)
         )
 
     def get_dxy_regime_score(self):
@@ -96,7 +99,8 @@ class MacroIndicator:
             name="DXY_Regime",
             score=score,
             details={"current": curr_dxy, "sma": sma, "regime": desc},
-            description=f"DXY is in a {desc}"
+            description=f"DXY is in a {desc}",
+            timestamp=datetime.now(timezone.utc)
         )
 
 if __name__ == "__main__":

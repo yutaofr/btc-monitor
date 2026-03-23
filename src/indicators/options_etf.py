@@ -1,4 +1,5 @@
 import datetime as dt
+from datetime import datetime, timezone
 import re
 
 import pandas as pd
@@ -148,6 +149,7 @@ class OptionsETFIndicator:
             details=details,
             description=description,
             is_valid=False,
+            timestamp=result.timestamp or datetime.now(timezone.utc)
         )
 
     def _select_target_expiry(self, instruments, min_days_ahead=7):
@@ -249,7 +251,8 @@ class OptionsETFIndicator:
                 "expiry": expiry_date,
                 "open_interest": open_interest
             },
-            description=desc
+            description=desc,
+            timestamp=datetime.now(timezone.utc)
         )
 
     def _get_etf_options_wall_score(self, symbol="BITO"):
@@ -314,7 +317,8 @@ class OptionsETFIndicator:
                 "expiry": expiry_date,
                 "open_interest": open_interest
             },
-            description=desc
+            description=desc,
+            timestamp=datetime.now(timezone.utc)
         )
 
     def get_options_wall_score(self):
@@ -364,7 +368,8 @@ class OptionsETFIndicator:
                 name="ETF_Flow",
                 score=score,
                 details={"etf_price": price_etf, "vol": vol_etf},
-                description=desc
+                description=desc,
+                timestamp=datetime.now(timezone.utc)
             ))
         except Exception as e:
             return self._as_research_only(

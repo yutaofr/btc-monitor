@@ -7,14 +7,18 @@ def check_freshness(obs_timestamp: datetime, ttl_hours: int, current_time: Optio
     If current_time is None, uses datetime.now().
     """
     if current_time is None:
-        current_time = datetime.now()
+        current_time = datetime.now(timezone.utc)
+    elif current_time.tzinfo is None:
+        current_time = current_time.replace(tzinfo=timezone.utc)
         
-    # Standardize to naive datetimes to avoid TypeError when mixing aware/naive
-    # Factor timestamps are often naive from indicator fetchers
-    t1 = current_time.replace(tzinfo=None)
-    t2 = obs_timestamp.replace(tzinfo=None)
-    
-    delta = t1 - t2
+    # Standardize observation to UTC as well
+    if obs_timestamp.tzinfo is None:
+        obs_timestamp = obs_timestamp.replace(tzinfo=timezone.utc)
+    else:
+        obs_timestamp = obs_timestamp.astimezone(timezone.utc)
+
+    delta = (current_time - obs_timestamp).total_seconds()
     max_delta_seconds = ttl_hours * 3600
     
-    return delta.total_seconds() <= max_delta_seconds
+    # Reject future dates (delta < 0) and stale dates (delta > max)
+    return 0 <= delta <= max_delta_seconds
