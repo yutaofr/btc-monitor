@@ -3,7 +3,7 @@ from src.backtest.metrics import calculate_forward_returns, evaluate_precision
 
 from src.strategy.advisory_engine import AdvisoryEngine
 from src.strategy.factor_models import FactorObservation
-from src.backtest.btc_backtest import (
+from src.backtest.advisory_history import (
     _load_btc_daily, _to_weekly_ohlcv, calculate_rsi, 
     _load_macro_series, _prepare_valuation_series, 
     _score_technical, _score_macro, _score_valuation, _score_missing
