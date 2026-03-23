@@ -125,14 +125,34 @@ def generate_advisory_backtest() -> dict:
     if "precision" not in metrics_df.columns:
         metrics_df["precision"] = pd.NA
         
+    # Calculate aggregate summaries
     precision_metrics = {}
-    confidence_buckets = {}
-    
+    for action in ["ADD", "REDUCE"]:
+        subset = metrics_df[metrics_df["action"] == action]
+        if not subset.empty:
+            total = len(subset.dropna(subset=["precision"]))
+            correct = len(subset[subset["precision"] == True])
+            precision_metrics[action] = {
+                "count": total,
+                "precision": round(correct / total, 4) if total > 0 else 0.0
+            }
+
+    # Confidence distribution (Bucketing)
+    def bucket_confidence(c):
+        if c < 40: return "<40 (Low)"
+        if c < 60: return "40-60 (Mixed)"
+        if c < 80: return "60-80 (Emerging)"
+        return "80-100 (Strong)"
+
+    metrics_df["conf_bucket"] = metrics_df["confidence"].apply(bucket_confidence)
+    confidence_buckets = metrics_df.groupby(["conf_bucket", "action"]).size().unstack(fill_value=0).to_dict()
+
     # Persist the generated artifact
     output_dir = "data/backtest"
     os.makedirs(output_dir, exist_ok=True)
     metrics_df.to_csv(os.path.join(output_dir, "advisory_backtest_result.csv"), index=False)
     print(f"Advisory backtest generated ({len(metrics_df)} weeks of history). Artifact saved to {output_dir}/advisory_backtest_result.csv.")
+    print(f"Precision Summary: {precision_metrics}")
     
     return {
         "precision_metrics": precision_metrics,

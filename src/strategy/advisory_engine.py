@@ -125,15 +125,27 @@ class AdvisoryEngine:
                 action = "HOLD"
                 summary = "Mixed evidence. (Downgraded due to low confidence)"
 
+        # Filter research factors from support/conflict lists to prevent leakage
+        supporting = [o.name for o in observations if o.score > 3 and o.name not in excluded_research]
+        conflicting = [o.name for o in observations if o.score < -3 and o.name not in excluded_research]
+        
+        # Populate machine-readable missing factors based on action block
+        missing_factors = []
+        if action == "HOLD":
+            if "Missing required ADD factors" in "".join(blocked_reasons):
+                missing_factors = missing_required_add
+            elif "Missing required REDUCE factors" in "".join(blocked_reasons):
+                missing_factors = missing_required_reduce
+
         return Recommendation(
             action=action,
             confidence=confidence,
             strategic_regime=strategic_regime,
             tactical_state=tactical_state,
-            supporting_factors=[o.name for o in observations if o.score > 3],
-            conflicting_factors=[o.name for o in observations if o.score < -3],
+            supporting_factors=supporting,
+            conflicting_factors=conflicting,
             missing_required_blocks=["valuation", "trend_cycle", "macro_liquidity"] if action == "INSUFFICIENT_DATA" else [],
-            missing_required_factors=[],
+            missing_required_factors=missing_factors,
             blocked_reasons=blocked_reasons,
             freshness_warnings=freshness_warnings,
             excluded_research_factors=excluded_research,
