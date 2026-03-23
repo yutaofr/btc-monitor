@@ -28,10 +28,10 @@ def test_research_factor_exclusion():
     
     # Valid strategic factors to get out of INSUFFICIENT_DATA
     obs = [
-        create_obs("MVRV_Proxy", 8.0),
-        create_obs("200WMA", 8.0),
-        create_obs("Net_Liquidity", 8.0),
-        create_obs("Options_Wall", 10.0), # Research factor
+        create_obs("MVRV_Proxy", 10.0),
+        create_obs("200WMA", 10.0),
+        create_obs("Net_Liquidity", 10.0),
+        create_obs("Options_Wall", -10.0) # Research-only Bearish
     ]
     
     rec = engine.evaluate(obs)

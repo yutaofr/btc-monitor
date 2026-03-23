@@ -41,36 +41,87 @@ class AdvisoryEngine:
                 summary="Missing required strategic evidence to form a high-confidence view."
             )
 
+        # Calculate Total Strategic Strength
+        raw_blocks = {}
+        for obs in observations:
+            try:
+                defn = get_factor(obs.name)
+                if defn.layer == Layer.STRATEGIC.value and obs.is_valid:
+                    if defn.block not in raw_blocks:
+                        raw_blocks[defn.block] = []
+                    raw_blocks[defn.block].append(obs.score)
+            except KeyError: continue
+            
+        block_means = []
+        for scores in raw_blocks.values():
+            if scores:
+                block_means.append(sum(scores) / len(scores))
+        
+        agreement_weight = sum(abs(s) for s in block_means)
+
         if regime == StrategicRegime.BULLISH_ACCUMULATION:
             action = Action.ADD
-            confidence = 70 # Base confidence for 3-block proof
-            summary = "High-confidence bullish accumulation regime confirmed by Valuation, Trend, and Macro blocks."
+            confidence = 70
+            summary = "High-confidence bullish accumulation regime confirmed."
             
-            # Tactical boost or penalty
+            # Gating
+            if agreement_weight < 12.0: 
+                action = Action.HOLD
+                summary = "Strategic strength is insufficient for high-confidence ADD."
+            
             if tactical_info["tactical_bias"] == "BULLISH_CONFIRMED":
-                confidence += 15
-                summary += " Tactical setup is also bullish."
+                confidence += 20
             elif tactical_info["tactical_bias"] == "BEARISH_CONFIRMED":
-                confidence -= 20
-                summary += " WARNING: Tactical setup is bearishly overstretched."
                 action = Action.HOLD # Fail closed on conflict
+                confidence = 50
+                summary = "Tactical setup is bearishly overstretched; holding despite bullish regime."
 
         elif regime == StrategicRegime.OVERHEATED:
             action = Action.REDUCE
             confidence = 70
-            summary = "Market showing signs of cyclical overheating across multiple blocks."
+            summary = "Market showing signs of cyclical overheating."
             
-            if tactical_info["tactical_bias"] == "BEARISH_CONFIRMED":
-                confidence += 20
-                summary += " Tactical indicators confirm reversal risk."
-            elif tactical_info["tactical_bias"] == "BULLISH_CONFIRMED":
-                confidence -= 30
-                summary += " Tactical momentum is still strong; reducing with caution."
+            # Gating: Extreme precision required (2 blocks @ ~9.0 each)
+            if agreement_weight < 18.0: 
+                action = Action.HOLD
+                summary = "Strategic strength is insufficient for high-confidence REDUCE."
+            
+            # Tactical Requirement: Must not be strongly bullish
+            if tactical_info["tactical_bias"] == "BULLISH_CONFIRMED":
+                action = Action.HOLD 
+                confidence = 50
+                summary = "Tactical momentum is still strongly bullish; holding despite overheating signs."
+            elif tactical_info["tactical_bias"] == "NEUTRAL":
+                # For high-confidence, we prefer a rollover confirmation for REDUCE
+                action = Action.HOLD
+                confidence = 50
+                summary = "Strategic overheating detected, but tactical rollover not yet confirmed."
+            elif tactical_info["tactical_bias"] == "BEARISH_CONFIRMED":
+                confidence += 30
+
+        # ABSOLUTE NO-CONFLICT GATE: If any decisional factor strongly contradicts the action
+        for o in observations:
+            if not o.is_valid: continue
+            try:
+                defn = get_factor(o.name)
+                if defn.layer == Layer.RESEARCH.value: continue # Research doesn't block
+
+                if action == Action.ADD and o.score < -5.0:
+                    action = Action.HOLD
+                    confidence = 50
+                    summary = f"Action ADD blocked by significant conflicting evidence: {o.name} ({o.score})"
+                    break
+                if action == Action.REDUCE and o.score > 5.0:
+                    action = Action.HOLD
+                    confidence = 50
+                    summary = f"Action REDUCE blocked by significant conflicting evidence: {o.name} ({o.score})"
+                    break
+            except: continue
 
         # Supporting/Conflicting/Research Lists
-        supporting = []
-        conflicting = []
-        research = []
+        supporting: List[str] = []
+        conflicting: List[str] = []
+        research: List[str] = []
         
         for o in observations:
             try:

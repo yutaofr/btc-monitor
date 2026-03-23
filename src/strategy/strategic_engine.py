@@ -37,16 +37,19 @@ class StrategicEngine:
         block_scores = {b: sum(o.score for o in obs_list) / len(obs_list) for b, obs_list in blocks.items()}
 
         # 1. Check for BULLISH_ACCUMULATION (Requires 3 blocks)
-        if all(b in blocks for b in self.required_blocks): # Bullish Accumulation: Requires 3-block agreement
-            if all(block_scores.get(b, 0) > 3.0 for b in self.required_blocks):
+        if all(b in blocks for b in self.required_blocks): 
+            # Case A: Standard 3-block proof
+            if all(block_scores.get(b, 0) > 4.0 for b in self.required_blocks):
                 return StrategicRegime.BULLISH_ACCUMULATION
+            # Case B: Opportunity Gap (Extreme Trend + Valuation, Macro recovery lag ok)
+            if block_scores.get("trend_cycle", 0) > 8.5 and block_scores.get("valuation", 0) > 8.5:
+                if block_scores.get("macro_liquidity", 0) > -8.0:
+                    return StrategicRegime.BULLISH_ACCUMULATION
         
-        # 2. Check for OVERHEATED (Requires 2 blocks, at least one is trend_cycle)
-        valid_blocks = list(blocks.keys())
-        if len(valid_blocks) >= 2:
-            if block_scores.get("trend_cycle", 0) < -4.0 and any(
-                block_scores.get(b, 0) < -4.0 for b in valid_blocks if b != "trend_cycle"
-            ):
+        # 2. Check for OVERHEATED (Requires 2 blocks, Trend + 1 other)
+        if block_scores.get("trend_cycle", 0) < -4.0:
+            other_blocks = [b for b in blocks if b != "trend_cycle"]
+            if any(block_scores.get(b, 0) < -4.0 for b in other_blocks):
                 return StrategicRegime.OVERHEATED
 
         # 3. Handle INSUFFICIENT_DATA vs NEUTRAL

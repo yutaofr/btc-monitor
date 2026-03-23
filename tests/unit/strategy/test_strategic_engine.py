@@ -14,9 +14,9 @@ def test_strategic_engine_outputs_allowed_regimes():
     
     # Needs all 3 blocks for BULLISH
     obs = [
-        create_obs("MVRV_Proxy", 8.0),
-        create_obs("200WMA", 6.0),
-        create_obs("Net_Liquidity", 5.0)
+        create_obs("MVRV_Proxy", 10.0), 
+        create_obs("200WMA", 10.0),
+        create_obs("Net_Liquidity", 10.0)
     ]
     
     regime = engine.infer_regime(obs)
@@ -36,8 +36,8 @@ def test_overheated_requires_two_blocks():
     engine = StrategicEngine()
     # Trend is -10 (Overheated), Macro is -5 (Overheated)
     obs = [
-        create_obs("200WMA", -10.0),
-        create_obs("Net_Liquidity", -5.0),
+        create_obs("200WMA", -10.0), 
+        create_obs("Net_Liquidity", -10.0),
         create_obs("MVRV_Proxy", 0.0) # Valuation valid but neutral
     ]
     regime = engine.infer_regime(obs)

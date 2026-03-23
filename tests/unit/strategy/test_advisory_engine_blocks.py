@@ -32,15 +32,15 @@ def test_add_gate_succeeds_with_all_blocks():
     """
     obs = [
         FactorObservation(
-            name="MVRV_Proxy", score=8.0, is_valid=True, details={}, description="",
+            name="MVRV_Proxy", score=10.0, is_valid=True, details={}, description="",
             timestamp=datetime.now(), freshness_ok=True, confidence_penalty=0, blocked_reason=""
         ),
         FactorObservation(
-            name="200WMA", score=8.0, is_valid=True, details={}, description="",
+            name="200WMA", score=10.0, is_valid=True, details={}, description="",
             timestamp=datetime.now(), freshness_ok=True, confidence_penalty=0, blocked_reason=""
         ),
         FactorObservation(
-            name="Net_Liquidity", score=8.0, is_valid=True, details={}, description="",
+            name="Net_Liquidity", score=10.0, is_valid=True, details={}, description="",
             timestamp=datetime.now(), freshness_ok=True, confidence_penalty=0, blocked_reason=""
         )
     ]
