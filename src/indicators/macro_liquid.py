@@ -41,27 +41,62 @@ class MacroIndicator:
 
     def get_yield_divergence_score(self):
         """
-        Monitor US10Y (Yields). High yields = Bad for Risk assets.
+        Monitor US10Y (Yields) as a regime.
+        High/rising yields = Bad for Risk assets. Falling = Good.
         """
         yields = self.fetcher.get_us10y()
-        if yields is None or len(yields) < 5:
+        if yields is None or len(yields) < 3:
             return IndicatorResult("Yields", 0, description="Insufficient data", is_valid=False)
 
         curr_yield = yields.iloc[-1]
-        prev_yield = yields.iloc[-5] # Week over Week
         
-        if curr_yield < prev_yield:
-            score = 5.0 # Yields falling, good for BTC
-        elif curr_yield > prev_yield * 1.05:
-            score = -5.0 # Yields spiking
+        # Simple regime check: current vs SMA (or just simple trend if not enough data)
+        sma = yields.mean()
+        
+        if curr_yield < sma:
+            score = 5.0 # Yields falling below moving average, favorable regime
+            desc = "falling regime"
+        elif curr_yield > sma * 1.02:
+            score = -5.0 # Yields rising above moving average, tight regime
+            desc = "rising regime"
         else:
             score = 0
+            desc = "stable regime"
             
         return IndicatorResult(
             name="Yields",
             score=score,
-            details={"current": curr_yield, "prev": prev_yield},
-            description=f"Yields are {'falling' if score > 0 else 'rising/stable'}"
+            details={"current": curr_yield, "sma": sma, "regime": desc},
+            description=f"Yields are in a {desc}"
+        )
+
+    def get_dxy_regime_score(self):
+        """
+        Evaluate DXY (Dollar Index) regime.
+        Falling dollar = Bullish for BTC. Rising dollar = Bearish.
+        """
+        dxy = self.fetcher.get_dxy()
+        if dxy is None or len(dxy) < 3:
+            return IndicatorResult("DXY_Regime", 0, description="Insufficient data", is_valid=False)
+
+        curr_dxy = dxy.iloc[-1]
+        sma = dxy.mean()
+        
+        if curr_dxy < sma:
+            score = 6.0 # DXY falling
+            desc = "falling regime"
+        elif curr_dxy > sma:
+            score = -6.0 # DXY rising
+            desc = "rising regime"
+        else:
+            score = 0
+            desc = "stable regime"
+            
+        return IndicatorResult(
+            name="DXY_Regime",
+            score=score,
+            details={"current": curr_dxy, "sma": sma, "regime": desc},
+            description=f"DXY is in a {desc}"
         )
 
 if __name__ == "__main__":

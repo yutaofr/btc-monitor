@@ -4,11 +4,11 @@
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
 [![Tests](https://img.shields.io/badge/tests-39%20passed-success.svg)](/tests/unit)
 
-**BTC Monitor** 是一个面向比特币长期投资者的量化决策支持工具。它不再把所有因子简单平均，而是拆成“战略层 + 战术层 + 执行层”三段流程，用来判断：
+**BTC Monitor** 是一个面向比特币长期投资者的量化决策支持工具。系统采用了“无状态高确信度建议引擎 (Stateless Advisory Engine)”架构，不再直接接管预算与执行，而是通过严谨的证据分块、回退限制与置信度打分，来输出最高质量的长期分批建仓与减仓建议：
 
-1. 当前是否属于值得长期增配的区间
-2. 现在是否适合执行买入
-3. 本月预算该一次打满、分批执行，还是继续等待
+1. 当前战略周期是否支持建仓（或减仓）
+2. 战术级别是否确认了相应的时机
+3. 通过严格的操作门槛（Action Gates）给出最终建议：`ADD`、`REDUCE` 或 `HOLD`
 
 > **核心约束**
 > 本项目禁止使用任何付费 API、付费数据源、试用后收费数据接口或商业终端数据。生产决策仅依赖免费公开数据。
@@ -51,21 +51,16 @@
 - `STAGGER_BUY`
 - `WAIT`
 
-### 3. 执行层 Execution
+### 3. 建议层 (Advisory Layer)
 
-执行层结合战略层、战术层和账户状态，给出最终动作：
+建议层（`AdvisoryEngine`）严格无状态，评估战略与战术的并发确认情况，输出确信度（Confidence Score, 0-100）与最终动作建议：
 
-- `BUY`
-- `PARTIAL_BUY`
-- `WAIT`
-- `ALERT`
+- `ADD`: 明确的增配信号（需战略与战术双确认满足最低阈值）
+- `REDUCE`: 明确的减配信号
+- `HOLD`: 不满足操作条件，持币观望
+- `INSUFFICIENT_DATA`: 核心数据缺失，采取保守回退（Fail-Closed）
 
-并处理：
-
-- 月度预算结转
-- 月内动作次数限制
-- 部分买入后的剩余额度
-- 状态持久化
+系统通过独立的评价机制阻拦由于单方面异常引发的伪动作。
 
 ---
 
@@ -120,19 +115,17 @@
 
 ## 决策逻辑
 
-当前实现采用兼容型分层评分：
+当前系统由 `factor_registry.py` 驱动因子树与评价：
 
-- 战略层分数主导长期方向
-- 战术层分数只作为时机调节
-- 综合分数当前使用 `0.7 * strategic + 0.3 * tactical`
-- 若战术层缺失，不会机械拉低战略层结论
-- 若战略层缺失，则默认返回中性结果，避免误买
+- 战略层分数主导长期方向 (Regime)
+- 战术层确认入场/减仓时机 (Tactical State)
+- 动作门槛（Action Gates）严格校验：例如 `ADD` 必须具备至少 N 个有效的基本面独立块证据，且战术面不得存在严重背离。
+- 若战略或战术数据严重受损缺失，则默认回退（Fail-Closed）输出 `HOLD`，同时降低确信度。
 
 执行动作示例：
 
-- `AGGRESSIVE_ACCUMULATE + BUY_NOW` -> `BUY`
-- `NORMAL_ACCUMULATE + STAGGER_BUY` -> `PARTIAL_BUY`
-- `RISK_REDUCE` -> `ALERT`
+- `BULLISH` (战略) + `CONFIRMED_UP` (战术) -> 强置信度的 `ADD`
+- 缺失核心区块证据 -> 建议动作降级为 `HOLD`，并在报告中显式说明 `Blocked Reasons`
 
 ---
 
@@ -146,11 +139,11 @@ btc-monitor/
 │   ├── fetchers/
 │   ├── indicators/
 │   ├── strategy/
-│   │   ├── engine.py
-│   │   ├── policies.py
+│   │   ├── advisory_engine.py
+│   │   ├── factor_models.py
+│   │   ├── factor_registry.py
 │   │   ├── strategic_engine.py
 │   │   ├── tactical_engine.py
-│   │   ├── execution_engine.py
 │   │   └── reporting.py
 │   ├── state/
 │   └── backtest/
@@ -220,15 +213,17 @@ docker compose run --rm tests
 示例：
 
 ```text
-# BTC Monitor Report
-Final Score: 78.5 / 100
-Strategic Score: 86.0 / 100
-Tactical Score: 61.0 / 100
-Regime: AGGRESSIVE_ACCUMULATE
-Timing: STAGGER_BUY
-Strategic Coverage: 83.33%
-Missing Required Core Factors: none
-Excluded Research Factors: Production_Cost, Options_Wall, ETF_Flow
+# BTC Monitor Advisory Report
+**Action:** `ADD`
+**Confidence:** `90` / 100
+**Regime:** `BULLISH`
+**Tactical State:** `CONFIRMED_UP`
+**Price:** $65,000.00
+
+**Summary:** Strong conviction standard allocation.
+
+## Confluence Analysis
+**Supporting Factors:** MVRV_Proxy, 200WMA, Puell_Multiple, RSI_Div
 ```
 
 ---

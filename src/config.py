@@ -14,7 +14,7 @@ class Config:
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-    # Strategy Thresholds (Scaling 0-100 for final normalized score)
+    # Legacy Execution Thresholds (Deprecated by Stateless Advisory Engine)
     THRESHOLD_BUY = float(os.getenv("THRESHOLD_BUY", 60.0))
     THRESHOLD_SELL = float(os.getenv("THRESHOLD_SELL", -40.0))
     MAX_BUDGET_MULTIPLIER = float(os.getenv("MAX_BUDGET_MULTIPLIER", 3.0))

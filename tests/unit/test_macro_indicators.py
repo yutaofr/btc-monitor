@@ -32,11 +32,48 @@ def test_net_liquidity_contraction(mocker):
 
 def test_yields_falling(mocker):
     mock_fetcher = mocker.Mock(spec=FredFetcher)
-    # Falling yields: 4.5 -> 4.3
-    yields = pd.Series([4.5, 4.4, 4.3, 4.2, 4.1], index=pd.date_range('2024-01-01', periods=5))
+    # Yields regime: long SMA vs short SMA or current vs trend
+    # Let's mock falling yields regime
+    yields = pd.Series([5.0, 4.8, 4.6, 4.4, 4.2], index=pd.date_range('2024-01-01', periods=5))
     
     mock_fetcher.get_us10y.return_value = yields
     indicator = MacroIndicator(fetcher=mock_fetcher)
     result = indicator.get_yield_divergence_score()
     
-    assert result.score == 5.0
+    assert result.score > 0.0
+    assert "regime" in result.details or "falling" in result.description.lower()
+
+def test_yields_regime_rising(mocker):
+    mock_fetcher = mocker.Mock(spec=FredFetcher)
+    yields = pd.Series([4.2, 4.4, 4.6, 4.8, 5.0], index=pd.date_range('2024-01-01', periods=5))
+    
+    mock_fetcher.get_us10y.return_value = yields
+    indicator = MacroIndicator(fetcher=mock_fetcher)
+    result = indicator.get_yield_divergence_score()
+    
+    assert result.score < 0.0
+
+def test_dxy_regime_falling(mocker):
+    mock_fetcher = mocker.Mock(spec=FredFetcher)
+    # Mocking DXY index falling
+    dxy = pd.Series([105.0, 104.0, 103.0, 102.0, 101.0], index=pd.date_range('2024-01-01', periods=5))
+    
+    mock_fetcher.get_dxy.return_value = dxy
+    indicator = MacroIndicator(fetcher=mock_fetcher)
+    result = indicator.get_dxy_regime_score()
+    
+    assert result.score > 0.0 # Falling dollar is bullish for BTC
+    assert result.is_valid
+    assert result.name == "DXY_Regime"
+
+def test_dxy_regime_rising(mocker):
+    mock_fetcher = mocker.Mock(spec=FredFetcher)
+    # Mocking DXY index rising
+    dxy = pd.Series([101.0, 102.0, 103.0, 104.0, 105.0], index=pd.date_range('2024-01-01', periods=5))
+    
+    mock_fetcher.get_dxy.return_value = dxy
+    indicator = MacroIndicator(fetcher=mock_fetcher)
+    result = indicator.get_dxy_regime_score()
+    
+    assert result.score < 0.0 # Rising dollar is bearish for BTC
+    assert result.is_valid
