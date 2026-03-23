@@ -46,19 +46,32 @@ def evaluate_history() -> pd.DataFrame:
         results.append(_score_missing("Options_Wall", "Historical options unavailable"))
         results.append(_score_missing("ETF_Flow", "Historical ETF flow unavailable"))
         
-        observations = [
-            FactorObservation(
-                name=res.name,
-                score=res.score,
-                is_valid=res.is_valid,
-                confidence_penalty=10 if not res.is_valid else 0,
-                details=getattr(res, "details", {}),
-                description=getattr(res, "description", ""),
-                timestamp=timestamp,
-                freshness_ok=True,
-                blocked_reason=""
-            ) for res in results
-        ]
+        from src.strategy.factor_registry import get_factor
+        from src.strategy.factor_utils import check_freshness
+        
+        observations = []
+        for res in results:
+            try:
+                definition = get_factor(res.name)
+                # In backtest, we check freshness relative to the current loop timestamp
+                obs_ts = getattr(res, "timestamp", timestamp)
+                is_fresh = check_freshness(obs_ts, definition.freshness_ttl_hours, current_time=timestamp)
+            except KeyError:
+                is_fresh = True
+
+            observations.append(
+                FactorObservation(
+                    name=res.name,
+                    score=res.score,
+                    is_valid=res.is_valid,
+                    confidence_penalty=10 if not res.is_valid else 0,
+                    details=getattr(res, "details", {}),
+                    description=getattr(res, "description", ""),
+                    timestamp=getattr(res, "timestamp", timestamp),
+                    freshness_ok=is_fresh,
+                    blocked_reason=""
+                )
+            )
         
         rec = engine.evaluate(observations)
         

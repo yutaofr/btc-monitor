@@ -14,19 +14,33 @@ def run_evaluation():
     raw_results = fetch_engine.evaluate()
     
     from src.strategy.factor_models import FactorObservation
-    observations = [
-        FactorObservation(
-            name=res.name,
-            score=res.score,
-            is_valid=res.is_valid,
-            confidence_penalty=10 if not res.is_valid else 0,
-            details=getattr(res, "details", {}),
-            description=getattr(res, "description", ""),
-            timestamp=datetime.now(),
-            freshness_ok=True,
-            blocked_reason=""
-        ) for res in raw_results
-    ]
+    from src.strategy.factor_registry import get_factor
+    from src.strategy.factor_utils import check_freshness
+    
+    observations = []
+    for res in raw_results:
+        try:
+            definition = get_factor(res.name)
+            ttl = definition.freshness_ttl_hours
+            # IndicatorResult usually carries a timestamp, if not use now
+            obs_ts = getattr(res, "timestamp", datetime.now())
+            is_fresh = check_freshness(obs_ts, ttl)
+        except KeyError:
+            is_fresh = True # Fallback for unknown factors
+            
+        observations.append(
+            FactorObservation(
+                name=res.name,
+                score=res.score,
+                is_valid=res.is_valid,
+                confidence_penalty=10 if not res.is_valid else 0,
+                details=getattr(res, "details", {}),
+                description=getattr(res, "description", ""),
+                timestamp=getattr(res, "timestamp", datetime.now()),
+                freshness_ok=is_fresh,
+                blocked_reason=""
+            )
+        )
     
     advisory_engine = AdvisoryEngine()
     recommendation = advisory_engine.evaluate(observations)
