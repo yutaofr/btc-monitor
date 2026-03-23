@@ -24,6 +24,7 @@ class AdvisoryEngine:
         action = Action.HOLD
         confidence = 50
         summary = "Market is in a neutral or transitional phase."
+        blocked_reasons = []
         
         if regime == StrategicRegime.INSUFFICIENT_DATA:
             return Recommendation(
@@ -64,38 +65,58 @@ class AdvisoryEngine:
             confidence = 70
             summary = "High-confidence bullish accumulation regime confirmed."
             
-            # Gating
-            if agreement_weight < 12.0: 
-                action = Action.HOLD
-                summary = "Strategic strength is insufficient for high-confidence ADD."
-            
-            if tactical_info["tactical_bias"] == "BULLISH_CONFIRMED":
-                confidence += 20
-            elif tactical_info["tactical_bias"] == "BEARISH_CONFIRMED":
-                action = Action.HOLD # Fail closed on conflict
+            # Opportunity Gap / Evidence Overload: If Valuation and Trend are extreme, Macro panic is secondary
+            is_evidence_overload = False
+            try:
+                val_obs = [o for o in observations if o.is_valid and get_factor(o.name).block == "valuation"]
+                trd_obs = [o for o in observations if o.is_valid and get_factor(o.name).block == "trend_cycle"]
+                valuation_score = sum(o.score * get_factor(o.name).default_weight for o in val_obs)
+                trend_score = sum(o.score * get_factor(o.name).default_weight for o in trd_obs)
+                if valuation_score > 12.0 and trend_score > 5.0:
+                    is_evidence_overload = True
+            except: pass
+
+            if tactical_info["tactical_bias"] == "BEARISH_CONFIRMED":
+                action = Action.HOLD 
                 confidence = 50
                 summary = "Tactical setup is bearishly overstretched; holding despite bullish regime."
+                blocked_reasons.append("Tactical Bearish Conflict")
+
+            # Gating: Selective but reachable (Threshold 5.0 or Overload)
+            if action == Action.ADD and agreement_weight < 5.0 and not is_evidence_overload: 
+                action = Action.HOLD
+                summary = "Strategic strength is insufficient for high-confidence ADD."
+                blocked_reasons.append(f"Low Agreement ({agreement_weight:.1f})")
 
         elif regime == StrategicRegime.OVERHEATED:
             action = Action.REDUCE
             confidence = 70
             summary = "Market showing signs of cyclical overheating."
             
-            # Gating: Extreme precision required (2 blocks @ ~9.0 each)
-            if agreement_weight < 18.0: 
+            # Gating: Selective but reachable (Threshold 5.0)
+            if agreement_weight < 5.0: 
                 action = Action.HOLD
                 summary = "Strategic strength is insufficient for high-confidence REDUCE."
+                blocked_reasons.append(f"Low Agreement ({agreement_weight:.1f})")
             
+            # Cyclic Breakdown Confirmation (EMA21) - confirmed filter
+            ema21_obs = next((o for o in observations if o.name == "EMA21_Weekly"), None)
+            if ema21_obs and ema21_obs.is_valid:
+                rel_dist = ema21_obs.details.get("rel_dist", 1.0)
+                if rel_dist > 0.0: # Price must be below EMA to confirm breakdown
+                    action = Action.HOLD
+                    confidence = 50
+                    summary = "Strategic overheating detected, but price has not definitively broken 21w EMA support."
+                    blocked_reasons.append(f"EMA21 Support Holding ({rel_dist:+.1%})")
+
             # Tactical Requirement: Must not be strongly bullish
             if tactical_info["tactical_bias"] == "BULLISH_CONFIRMED":
                 action = Action.HOLD 
                 confidence = 50
                 summary = "Tactical momentum is still strongly bullish; holding despite overheating signs."
-            elif tactical_info["tactical_bias"] == "NEUTRAL":
-                # For high-confidence, we prefer a rollover confirmation for REDUCE
-                action = Action.HOLD
-                confidence = 50
-                summary = "Strategic overheating detected, but tactical rollover not yet confirmed."
+                blocked_reasons.append("Tactical Bullish Conflict")
+            elif tactical_info["tactical_bias"] == "NEUTRAL" and action == Action.REDUCE:
+                confidence = 60 # Lower confidence if not bearish confirmed
             elif tactical_info["tactical_bias"] == "BEARISH_CONFIRMED":
                 confidence += 30
 
@@ -107,14 +128,21 @@ class AdvisoryEngine:
                 if defn.layer == Layer.RESEARCH.value: continue # Research doesn't block
 
                 if action == Action.ADD and o.score < -5.0:
+                    if o.name == "EMA21_Weekly": continue # Low EMA21 is expected at bottom
+                    if defn.block == "macro_liquidity": continue # Macro panic shouldn't veto deep value
                     action = Action.HOLD
                     confidence = 50
                     summary = f"Action ADD blocked by significant conflicting evidence: {o.name} ({o.score})"
+                    blocked_reasons.append(f"Veto: {o.name}")
                     break
-                if action == Action.REDUCE and o.score > 5.0:
+                if action == Action.REDUCE and o.score > 2.0:
+                    # BLOCK NAME CHECK: Ensure it matches factor_registry.py
+                    if defn.block in ["trend_cycle", "macro_liquidity"]: continue 
+                    if defn.layer == Layer.TACTICAL.value: continue # Don't let noisy tactical sentiment block a cyclic exit
                     action = Action.HOLD
                     confidence = 50
                     summary = f"Action REDUCE blocked by significant conflicting evidence: {o.name} ({o.score})"
+                    blocked_reasons.append(f"Veto: {o.name}")
                     break
             except: continue
 
@@ -154,7 +182,7 @@ class AdvisoryEngine:
             conflicting_factors=conflicting[:5],
             missing_required_blocks=[],
             missing_required_factors=[],
-            blocked_reasons=[],
+            blocked_reasons=blocked_reasons,
             freshness_warnings=warnings,
             excluded_research_factors=research,
             summary=summary

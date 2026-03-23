@@ -36,26 +36,24 @@ class StrategicEngine:
         # Calculate block scores
         block_scores = {b: sum(o.score for o in obs_list) / len(obs_list) for b, obs_list in blocks.items()}
 
-        # 1. Check for BULLISH_ACCUMULATION (Requires 3 blocks)
-        if all(b in blocks for b in self.required_blocks): 
-            # Case A: Standard 3-block proof
-            if all(block_scores.get(b, 0) > 4.0 for b in self.required_blocks):
-                return StrategicRegime.BULLISH_ACCUMULATION
-            # Case B: Opportunity Gap (Extreme Trend + Valuation, Macro recovery lag ok)
-            if block_scores.get("trend_cycle", 0) > 8.5 and block_scores.get("valuation", 0) > 8.5:
-                if block_scores.get("macro_liquidity", 0) > -8.0:
-                    return StrategicRegime.BULLISH_ACCUMULATION
-        
-        # 2. Check for OVERHEATED (Requires 2 blocks, Trend + 1 other)
-        if block_scores.get("trend_cycle", 0) < -4.0:
-            other_blocks = [b for b in blocks if b != "trend_cycle"]
-            if any(block_scores.get(b, 0) < -4.0 for b in other_blocks):
-                return StrategicRegime.OVERHEATED
+        score_val = block_scores.get("valuation", 0.0)
+        score_trd = block_scores.get("trend_cycle", 0.0)
+        score_mac = block_scores.get("macro_liquidity", 0.0)
 
-        # 3. Handle INSUFFICIENT_DATA vs NEUTRAL
-        # If we have all 3 blocks but no edge case, it's NEUTRAL
+        # 1. OVERHEATED (Extreme Valuation or Trend with confirmation)
+        if score_val < -5.0 and score_trd < -5.0:
+            return StrategicRegime.OVERHEATED
+        if score_val < -3.0 and score_trd < -3.0 and score_mac < -3.0:
+            return StrategicRegime.OVERHEATED
+            
+        # 2. BULLISH_ACCUMULATION (Extreme Value or Trend with confirmation)
+        if score_val > 5.0 and score_trd > 5.0:
+            return StrategicRegime.BULLISH_ACCUMULATION
+        if score_val > 3.0 and score_trd > 3.0 and score_mac > 3.0:
+            return StrategicRegime.BULLISH_ACCUMULATION
+
+        # 3. Handle NEUTRAL vs INSUFFICIENT_DATA
         if all(b in blocks for b in self.required_blocks):
             return StrategicRegime.NEUTRAL
-            
-        # If we are missing required blocks and couldn't find a trend-supported signal
+
         return StrategicRegime.INSUFFICIENT_DATA

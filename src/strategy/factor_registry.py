@@ -141,6 +141,30 @@ _REGISTRY = {
         default_weight=1.0,
         confidence_class="medium"
     ),
+    "EMA21_Weekly": FactorDefinition(
+        name="EMA21_Weekly",
+        layer="tactical",
+        block="trend_cycle",
+        source_class="price",
+        is_required_for_add=False,
+        is_required_for_reduce=True,
+        is_backtestable=True,
+        freshness_ttl_hours=48,
+        default_weight=1.0,
+        confidence_class="medium"
+    ),
+    "RSI_Weekly": FactorDefinition(
+        name="RSI_Weekly",
+        layer="tactical",
+        block="sentiment_tactical",
+        source_class="price",
+        is_required_for_add=False,
+        is_required_for_reduce=False,
+        is_backtestable=True,
+        freshness_ttl_hours=168,
+        default_weight=1.0,
+        confidence_class="medium"
+    ),
     
     # Research Factors
     "Production_Cost": FactorDefinition(

@@ -3,8 +3,6 @@ import numpy as np
 import requests
 import os
 from src.config import Config
-from src.fetchers.blockchain_fetcher import BlockchainFetcher
-from src.fetchers.binance_fetcher import BinanceFetcher
 from src.indicators.base import IndicatorResult
 from fredapi import Fred
 
@@ -31,6 +29,7 @@ def _load_macro_series(index):
         return None, None, None
 
 def _prepare_valuation_series(index):
+    from src.fetchers.blockchain_fetcher import BlockchainFetcher
     try:
         fetcher = BlockchainFetcher()
         timespan = "10years"
@@ -54,16 +53,29 @@ def _prepare_valuation_series(index):
     except Exception as e:
         print(f"[ERROR] Valuation data prep failed: {e}")
         return None, None, None
-
 def _score_technical(weekly, rsi_weekly, idx):
     results = []
     price = weekly["close"].iloc[idx]
+    
+    # Cyclic Momentum: 21-week EMA
+    ema21 = weekly["close"].ewm(span=21).mean().iloc[idx]
+    if not np.isnan(ema21):
+        rel_ema21 = (price - ema21) / ema21
+        # Map: > 20% over -> -10 (Overheated); < 0% (Breakdown) -> -10 (Trend Snapped)
+        # Neutral between 0% and 10%
+        if rel_ema21 < 0: ema21_score = -10.0 # Breakdown
+        elif rel_ema21 > 0.2: ema21_score = -10.0 # Parabolic
+        else: ema21_score = 0.0 # Holding support
+        results.append(IndicatorResult("EMA21_Weekly", round(ema21_score, 2), True, {"rel_dist": round(rel_ema21, 4)}))
+    else:
+        results.append(IndicatorResult("EMA21_Weekly", 0.0, False))
+
     ma200 = weekly["close"].rolling(200).mean().iloc[idx]
     score_200 = 0.0
     if not np.isnan(ma200):
         dist = (price - ma200) / ma200
         if dist < 0: score_200 = min(10.0, abs(dist) * 50)
-        else: score_200 = max(-10.0, -dist * 20)
+        else: score_200 = max(-10.0, -dist * 50)
         results.append(IndicatorResult("200WMA", round(score_200, 2), True))
     else: results.append(IndicatorResult("200WMA", 0.0, False))
 
