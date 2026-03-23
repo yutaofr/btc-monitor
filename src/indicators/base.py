@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+from datetime import datetime
 
 @dataclass
 class IndicatorResult:
@@ -9,6 +10,7 @@ class IndicatorResult:
     details: Dict[str, Any] = field(default_factory=dict)
     description: str = ""
     is_valid: bool = True
+    timestamp: Optional[datetime] = None
 
 def calculate_rsi(series, period=14):
     """Utility to calculate RSI for a given series."""

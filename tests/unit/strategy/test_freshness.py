@@ -38,3 +38,18 @@ def test_freshness_utility_logic():
     
     assert check_freshness(ts_fresh, 24, current_time=now) is True
     assert check_freshness(ts_stale, 24, current_time=now) is False
+
+def test_timezone_mismatch():
+    """Verify that mixing aware and naive datetimes doesn't raise TypeError."""
+    from datetime import timezone
+    from src.strategy.factor_utils import check_freshness
+    
+    now_aware = datetime.now(timezone.utc)
+    ts_naive = datetime.now() - timedelta(hours=10)
+    
+    # This should internally normalize and return True without crashing
+    assert check_freshness(ts_naive, 24, current_time=now_aware) is True
+    
+    ts_stale_naive = datetime.now() - timedelta(hours=50)
+    assert check_freshness(ts_stale_naive, 24, current_time=now_aware) is False
+

@@ -22,11 +22,13 @@ def run_evaluation():
         try:
             definition = get_factor(res.name)
             ttl = definition.freshness_ttl_hours
-            # IndicatorResult usually carries a timestamp, if not use now
-            obs_ts = getattr(res, "timestamp", datetime.now())
+            
+            # IndicatorResult may have None. Fallback explicitly to now()
+            obs_ts = res.timestamp if res.timestamp is not None else datetime.now()
             is_fresh = check_freshness(obs_ts, ttl)
         except KeyError:
             is_fresh = True # Fallback for unknown factors
+            obs_ts = res.timestamp if res.timestamp is not None else datetime.now()
             
         observations.append(
             FactorObservation(
@@ -36,7 +38,7 @@ def run_evaluation():
                 confidence_penalty=10 if not res.is_valid else 0,
                 details=getattr(res, "details", {}),
                 description=getattr(res, "description", ""),
-                timestamp=getattr(res, "timestamp", datetime.now()),
+                timestamp=obs_ts,
                 freshness_ok=is_fresh,
                 blocked_reason=""
             )

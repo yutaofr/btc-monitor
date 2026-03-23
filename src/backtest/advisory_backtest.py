@@ -54,10 +54,11 @@ def evaluate_history() -> pd.DataFrame:
             try:
                 definition = get_factor(res.name)
                 # In backtest, we check freshness relative to the current loop timestamp
-                obs_ts = getattr(res, "timestamp", timestamp)
+                obs_ts = res.timestamp if res.timestamp is not None else timestamp
                 is_fresh = check_freshness(obs_ts, definition.freshness_ttl_hours, current_time=timestamp)
             except KeyError:
                 is_fresh = True
+                obs_ts = res.timestamp if res.timestamp is not None else timestamp
 
             observations.append(
                 FactorObservation(
@@ -67,7 +68,7 @@ def evaluate_history() -> pd.DataFrame:
                     confidence_penalty=10 if not res.is_valid else 0,
                     details=getattr(res, "details", {}),
                     description=getattr(res, "description", ""),
-                    timestamp=getattr(res, "timestamp", timestamp),
+                    timestamp=obs_ts,
                     freshness_ok=is_fresh,
                     blocked_reason=""
                 )

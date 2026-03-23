@@ -9,9 +9,12 @@ def check_freshness(obs_timestamp: datetime, ttl_hours: int, current_time: Optio
     if current_time is None:
         current_time = datetime.now()
         
-    # Ensure both are naive or both are aware. Registry timestamps are usually naive from indicators.
-    # For robust comparison, if one is aware and other is not, we'll strip tz.
-    delta = current_time - obs_timestamp
+    # Standardize to naive datetimes to avoid TypeError when mixing aware/naive
+    # Factor timestamps are often naive from indicator fetchers
+    t1 = current_time.replace(tzinfo=None)
+    t2 = obs_timestamp.replace(tzinfo=None)
+    
+    delta = t1 - t2
     max_delta_seconds = ttl_hours * 3600
     
     return delta.total_seconds() <= max_delta_seconds
