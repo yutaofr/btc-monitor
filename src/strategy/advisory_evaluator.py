@@ -4,7 +4,7 @@ from src.indicators.sentiment_cycle import SentimentCycleIndicator
 from src.indicators.technical import TechnicalIndicator
 from src.indicators.valuation import ValuationIndicator
 
-class FactorEvaluator:
+class AdvisoryEvaluator:
     """
     Stateless evaluator that runs all indicator fetchers and aggregates
     the resulting IndicatorResults without coupling to execution logic.

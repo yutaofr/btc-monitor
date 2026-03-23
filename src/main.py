@@ -1,6 +1,6 @@
 import argparse
 from datetime import datetime
-from src.strategy.factor_evaluator import FactorEvaluator
+from src.strategy.advisory_evaluator import AdvisoryEvaluator
 from src.strategy.advisory_engine import AdvisoryEngine
 from src.strategy.reporting import build_advisory_report
 
@@ -8,9 +8,9 @@ def run_evaluation():
     """Trigger a full evaluation cycle and print/notify result."""
     print(f"[{datetime.now().isoformat()}] Starting Market Evaluation Snapshot...")
     
-    # Use FactorEvaluator directly to fetch the raw IndicatorResult list
+    # Use AdvisoryEvaluator directly to fetch the raw IndicatorResult list
     # mapped to FactorObservations for the new AdvisoryEngine
-    fetch_engine = FactorEvaluator()
+    fetch_engine = AdvisoryEvaluator()
     raw_results = fetch_engine.evaluate_all()
     
     from src.strategy.factor_models import FactorObservation
