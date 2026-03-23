@@ -1,6 +1,18 @@
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from enum import Enum
+
+class Layer(Enum):
+    STRATEGIC = "strategic"
+    TACTICAL = "tactical"
+    RESEARCH = "research"
+
+class Action(Enum):
+    ADD = "ADD"
+    REDUCE = "REDUCE"
+    HOLD = "HOLD"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
 
 @dataclass(frozen=True)
 class FactorDefinition:

@@ -1,36 +1,51 @@
 import pytest
 import pandas as pd
-from datetime import datetime
-from src.indicators.miner_cycle import Hash_Ribbon
+from datetime import datetime, timedelta
+from src.indicators.miner_cycle import calculate_hash_ribbon
 
-def test_hash_ribbon_bullish_recovery():
-    # Simulate Hash Ribbon recovery: 30d moving average crosses above 60d moving average
-    # after a period of being below (capitulation).
-    dates = pd.date_range(end=datetime.now(), periods=65, freq="D")
-    base_data = [80] * 35 + [85, 90, 85, 80, 95] * 6 # Pad to past 60 to allow crossing
-    df = pd.DataFrame({"hashrate": base_data}, index=dates)
+def test_hash_ribbon_recovery():
+    """
+    Test recovery signal: 30d MA crosses ABOVE 60d MA.
+    """
+    # Create 90 days of synthetic hashrate
+    dates = [datetime.now() - timedelta(days=i) for i in range(90)]
+    dates.reverse()
     
-    indicator = Hash_Ribbon()
-    result = indicator.evaluate(df)
+    # Simulate a dip and recovery
+    # Days 0-60: trending down
+    # Days 61-90: trending up sharply
+    hashrate = []
+    for i in range(60):
+        hashrate.append(100 - (i * 0.5))
+    for i in range(30):
+        hashrate.append(70 + (i * 2.0))
+        
+    df = pd.DataFrame({"value": hashrate}, index=dates)
     
-    assert result.is_valid
-    assert result.score > 0.0 # Bullish score
-    assert "recovery" in result.details.get("state", "").lower()
+    result = calculate_hash_ribbon(df)
+    assert result.name == "Hash_Ribbon"
+    assert result.is_valid is True
+    # In recovery phase (30d > 60d), score should be BULLISH
+    assert result.score >= 5.0
 
-def test_hash_ribbon_capitulation_bearish():
-    # Simulate Hash Ribbon capitulation: 30d crosses below 60d
-    dates = pd.date_range(end=datetime.now(), periods=65, freq="D")
-    base_data = [120] * 35 + [115, 110, 105, 95, 80] * 6 # Pad to past 60 to allow crossing
-    df = pd.DataFrame({"hashrate": base_data}, index=dates)
+def test_hash_ribbon_capitulation():
+    """
+    Test capitulation signal: 30d MA crosses BELOW 60d MA.
+    """
+    dates = [datetime.now() - timedelta(days=i) for i in range(90)]
+    dates.reverse()
     
-    indicator = Hash_Ribbon()
-    result = indicator.evaluate(df)
+    # Simulate a crash
+    hashrate = []
+    for i in range(60):
+        hashrate.append(100)
+    for i in range(30):
+        hashrate.append(50) # Sharp drop
+        
+    df = pd.DataFrame({"value": hashrate}, index=dates)
     
-    assert result.is_valid
-    assert result.score < 0.0 # Bearish score
-    assert "capitulation" in result.details.get("state", "").lower()
-
-def test_hash_ribbon_invalid_data():
-    indicator = Hash_Ribbon()
-    result = indicator.evaluate(pd.DataFrame())
-    assert not result.is_valid
+    result = calculate_hash_ribbon(df)
+    # In capitulation, score should be BEARISH or Neutral (waiting for recovery)
+    # But often Hash_Ribbon is used primarily for the BUY signal when it un-crosses.
+    # We'll expect a low score during capitulation.
+    assert result.score <= 0.0

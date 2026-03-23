@@ -1,17 +1,17 @@
-# BTC Monitor ADD: Advisory-Only High-Confidence Decision Architecture
+# BTC Monitor ADD: Calibrated Advisory Decision Architecture
 
-> **For Claude Code:** This ADD defines the target architecture that implements the SRD in `docs/2026-03-23-btc-monitor-high-confidence-advisory-srd.md`. Treat this document as the design source of truth for the advisory refactor. Do not reintroduce budget pacing, position sizing, or execution state into the core decision path.
+> **For Claude Code:** This ADD defines the target architecture that implements the SRD in `docs/2026-03-23-btc-monitor-high-confidence-advisory-srd.md`. Treat this document as the design source of truth for the advisory refactor. The live path is already stateless; the remaining design problem is confidence calibration, horizon-aware validation, and stronger precision for `ADD` / `REDUCE`. Do not reintroduce budget pacing, position sizing, or execution state into the core decision path.
 
 ## Metadata
 
-- Status: Proposed
+- Status: Proposed, refinement of the now-stateless advisory path
 - Date: 2026-03-23
 - Type: Architecture design and decision document
 - Parent: `docs/2026-03-23-btc-monitor-high-confidence-advisory-srd.md`
 
 ## Executive Decision
 
-`btc-monitor` will be refactored from a stateful DCA execution engine into a **stateless advisory engine** that emits high-confidence BTC position guidance only:
+`btc-monitor` will be refined into a **calibrated advisory engine** that emits high-confidence BTC position guidance only:
 
 - `ADD`
 - `REDUCE`
@@ -24,7 +24,8 @@ The new design rejects flat score-to-action mapping as the primary control mecha
 - independent evidence blocks
 - fail-closed coverage gates
 - rule-based action eligibility
-- confidence derived from evidence quality, agreement, and conflict
+- confidence derived from evidence quality, agreement, conflict, and historical calibration
+- multi-horizon validation, not one-horizon optimism
 
 ## Goals
 
@@ -34,6 +35,7 @@ The new design rejects flat score-to-action mapping as the primary control mecha
 - make missing-data behavior explicit and conservative
 - keep all production inputs free, replayable, and testable
 - validate the system on advisory quality rather than portfolio PnL alone
+- calibrate confidence against historical precision and horizon performance
 
 ## Non-Goals
 
@@ -80,6 +82,8 @@ Confidence is not a cosmetic number. It must be derived from:
 - block agreement
 - block conflict
 - factor confidence class
+- historical precision by confidence bucket
+- horizon-specific correctness
 
 ## Target System Overview
 
@@ -90,6 +94,7 @@ The new system has five logical layers:
 3. Strategic regime inference
 4. Tactical confirmation
 5. Advisory decision and reporting
+6. Confidence calibration and validation
 
 The execution layer becomes optional and external. It is no longer part of the core recommendation pipeline.
 
@@ -114,6 +119,7 @@ src/
     advisory_backtest.py
     datasets.py
     metrics.py
+    calibration.py
 ```
 
 ## Core Domain Model
@@ -177,6 +183,7 @@ Required fields:
 - `missing_required_factors`
 - `blocked_reasons`
 - `summary`
+- `calibration_context`
 
 ## Factor Registry Design
 
@@ -292,6 +299,7 @@ The tactical engine refines timing. It cannot overturn a structurally blocked re
 - macro block is not bearish
 - trend block is not bearish
 - conflict count stays within threshold
+- confidence can be calibrated into an actionable band
 
 ### `REDUCE` gate
 
@@ -302,6 +310,7 @@ The tactical engine refines timing. It cannot overturn a structurally blocked re
 - overheating or deterioration evidence exists
 - at least one non-price block confirms the risk
 - tactical state is not strongly favorable to add
+- confidence can be calibrated into an actionable band
 
 ### `HOLD`
 
@@ -320,7 +329,7 @@ Return `INSUFFICIENT_DATA` when:
 
 ## Confidence Model
 
-Confidence is computed after the action gate succeeds.
+Confidence is computed after the action gate succeeds and is then calibrated against historical performance.
 
 Base confidence inputs:
 
@@ -330,12 +339,20 @@ Base confidence inputs:
 - block agreement
 - conflict penalty
 - factor confidence class
+- historical precision table
+- horizon-specific calibration curve
 
 Recommended confidence bands:
 
 - `80-100`: high conviction
 - `60-79`: actionable but contested
 - `<60`: downgrade to `HOLD` unless the action is `INSUFFICIENT_DATA`
+
+Calibration requirements:
+
+- confidence must not collapse to a single value across the full backtest
+- higher confidence buckets must not be less precise than lower confidence buckets on the same horizon
+- 84-day and 182-day calibration should matter more than 28-day calibration for cycle decisions
 
 This keeps low-quality signals from being labeled as strong advice.
 
@@ -379,6 +396,7 @@ Primary outputs:
 - false-positive rate
 - false-negative rate
 - confidence-bucket monotonicity
+- calibration curves by confidence bucket
 - cycle-sliced summary tables
 
 Secondary outputs:
@@ -434,8 +452,9 @@ If any of those fail, the factor is research-only.
 ### Phase 5: Replace acceptance backtest
 
 - add advisory metrics
+- add confidence calibration
 - regenerate artifacts
-- document cycle-sliced and walk-forward results
+- document cycle-sliced, walk-forward, and horizon-specific results
 
 ## Risks and Trade-Offs
 
@@ -480,6 +499,8 @@ The implementation based on this ADD is accepted only if:
 - `INSUFFICIENT_DATA` is reachable and tested
 - current stale backtest artifacts are replaced
 - advisory metrics become the primary validation artifact
+- confidence is calibrated and demonstrably monotonic by bucket on at least one holdout slice
+- longer-horizon precision is evaluated alongside 28-day precision
 - docs and code policy stay aligned
 
 ## Deliverable

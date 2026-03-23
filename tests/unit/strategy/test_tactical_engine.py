@@ -9,30 +9,22 @@ def create_obs(name, score):
         timestamp=datetime.now(), freshness_ok=True, confidence_penalty=0.0, blocked_reason=""
     )
 
-def test_tactical_engine_outputs_allowed_states():
+def test_tactical_engine_outputs_bias():
     engine = TacticalEngine()
-    obs = [create_obs("RSI_Div", 10.0), create_obs("FearGreed", 8.0)]
-    state = engine.evaluate_tactical(obs)
-    assert state in ["FAVORABLE_ADD", "NEUTRAL", "FAVORABLE_REDUCE", "INSUFFICIENT_DATA"]
-
-    obs_neutral = [create_obs("RSI_Div", 0.0), create_obs("FearGreed", 0.0)]
-    state_neutral = engine.evaluate_tactical(obs_neutral)
-    assert state_neutral == "NEUTRAL"
-
-def test_tactical_engine_favorable_states():
-    engine = TacticalEngine()
-    # Bullish
-    assert engine.evaluate_tactical([create_obs("RSI_Div", 10.0), create_obs("FearGreed", 10.0)]) == "FAVORABLE_ADD"
-    # Bearish
-    assert engine.evaluate_tactical([create_obs("RSI_Div", -10.0), create_obs("FearGreed", -10.0)]) == "FAVORABLE_REDUCE"
+    obs = [
+        create_obs("FearGreed", 8.0),
+        create_obs("RSI_Weekly", 6.0) # In registry, feargreed is tactical
+    ]
+    result = engine.evaluate_tactical(obs)
+    assert "tactical_bias" in result
+    assert result["tactical_bias"] == "BULLISH_CONFIRMED"
 
 def test_tactical_missing_data():
     engine = TacticalEngine()
-    # Empty observations or missing required ones (RSI_Div & FearGreed)
-    state = engine.evaluate_tactical([])
-    assert state == "INSUFFICIENT_DATA"
-
-def test_tactical_cannot_create_structural_add():
-    engine = TacticalEngine()
-    state = engine.evaluate_tactical([create_obs("RSI_Div", 10.0), create_obs("FearGreed", 10.0)])
-    assert state != "ADD" # Must return tactical states only
+    obs = [
+        # Only strategic factors
+        create_obs("MVRV_Proxy", 8.0)
+    ]
+    result = engine.evaluate_tactical(obs)
+    assert result["tactical_bias"] == "NEUTRAL"
+    assert result["counts"] == 0

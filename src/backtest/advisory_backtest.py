@@ -27,8 +27,8 @@ def generate_advisory_backtest():
     
     # Pre-calculate indicators on the full series
     rsi_weekly = calculate_rsi(weekly["close"], period=14)
-    net_liq, yields = _load_macro_series(weekly.index)
-    mvrv_weekly, puell_weekly = _prepare_valuation_series(weekly.index)
+    net_liq, yields, dxy = _load_macro_series(weekly.index)
+    mvrv_weekly, puell_weekly, hash_weekly = _prepare_valuation_series(weekly.index)
     fng_weekly = _prepare_fng_series(weekly.index)
     
     engine = AdvisoryEngine()
@@ -41,11 +41,11 @@ def generate_advisory_backtest():
         # 1. Technical Indicators (200WMA, RSI)
         results = _score_technical(weekly, rsi_weekly, idx)
         
-        # 2. Macro Indicators (Net Liquidity, Yields)
-        results.extend(_score_macro(net_liq, yields, idx))
+        # 2. Macro Indicators (Net Liquidity, Yields, DXY)
+        results.extend(_score_macro(net_liq, yields, dxy, idx))
         
-        # 3. Valuation Indicators (MVRV, Puell)
-        results.extend(_score_valuation(mvrv_weekly, puell_weekly, idx))
+        # 3. Valuation Indicators (MVRV, Puell, Hash Ribbon)
+        results.extend(_score_valuation(mvrv_weekly, puell_weekly, hash_weekly, weekly, idx))
         
         # 4. Sentiment (FearGreed, CyclePosition)
         # FearGreed from fng_weekly
@@ -110,9 +110,9 @@ def generate_advisory_backtest():
 
 def _generate_performance_report(df, full_prices):
     """Generate the markdown performance report from REAL results."""
-    # Add forward returns for precision check
+    # Add forward returns for multiple horizons (28, 84, 182 days)
     results_list = []
-    forward_windows = [28] # 4 weeks
+    forward_windows = [28, 84, 182]
     
     for _, row in df.iterrows():
         eval_date = row["timestamp"]
@@ -120,48 +120,48 @@ def _generate_performance_report(df, full_prices):
         row_dict = row.to_dict()
         row_dict.update(returns)
         
-        # Calculate precision for ADD/REDUCE
-        if row["action"] in ["ADD", "REDUCE"]:
-            fwd_ret = returns.get("28_day_return")
-            if fwd_ret is not None:
-                row_dict["precision"] = evaluate_precision(row["action"], fwd_ret)
+        # Calculate precision for ADD/REDUCE across all windows
+        for win in forward_windows:
+            col = f"{win}_day_return"
+            if row["action"] in ["ADD", "REDUCE"]:
+                fwd_ret = returns.get(col)
+                if fwd_ret is not None:
+                    row_dict[f"precision_{win}"] = evaluate_precision(row["action"], fwd_ret)
         
         results_list.append(row_dict)
         
     metrics_df = pd.DataFrame(results_list)
     
-    # Ensure columns exist
-    if "28_day_return" not in metrics_df.columns: metrics_df["28_day_return"] = np.nan
-    if "precision" not in metrics_df.columns: metrics_df["precision"] = np.nan
-    
     with open("data/backtest/advisory_performance_report.md", "w") as f:
-        f.write("# Authentic Advisory Performance Report\n")
+        f.write("# High-Confidence Advisory Performance Report\n")
         f.write(f"**Generated:** {pd.Timestamp.now()}\n")
         f.write(f"**History Length:** {len(df)} weeks\n\n")
         
         f.write("## 1. Action Distribution\n")
         dist = metrics_df["action"].value_counts(normalize=True).to_dict()
         f.write("| Action | Frequency |\n|--------|-----------|\n")
-        for act, freq in dist.items():
+        for act in ["ADD", "REDUCE", "HOLD", "INSUFFICIENT_DATA"]:
+            freq = dist.get(act, 0)
             f.write(f"| {act} | {freq:.2%} |\n")
         f.write("\n")
         
-        f.write("## 2. Action Precision (28-day window)\n")
-        f.write("| Action | Count | Precision |\n|--------|-------|-----------|\n")
+        f.write("## 2. Multi-Horizon Precision\n")
+        f.write("| Action | 28d Precision | 84d Precision | 182d Precision |\n")
+        f.write("|--------|---------------|---------------|----------------|\n")
         for action in ["ADD", "REDUCE"]:
-            subset = metrics_df[metrics_df["action"] == action].dropna(subset=["precision"])
-            if not subset.empty:
-                prec = subset["precision"].mean()
-                f.write(f"| {action} | {len(subset)} | {prec:.2%} |\n")
-            else:
-                f.write(f"| {action} | 0 | N/A |\n")
+            subset = metrics_df[metrics_df["action"] == action]
+            p28 = subset["precision_28"].mean() if "precision_28" in subset.columns else 0
+            p84 = subset["precision_84"].mean() if "precision_84" in subset.columns else 0
+            p182 = subset["precision_182"].mean() if "precision_182" in subset.columns else 0
+            f.write(f"| {action} | {p28:.1%} | {p84:.1%} | {p182:.1%} |\n")
         f.write("\n")
         
         f.write("## 3. Regime Breakdown\n")
         f.write("| Regime | Count | Avg Confidence |\n|--------|-------|----------------|\n")
-        regimes = metrics_df.groupby("strategic_regime")
-        for name, group in regimes:
-            f.write(f"| {name} | {len(group)} | {group['confidence'].mean():.1f} |\n")
+        if "strategic_regime" in metrics_df.columns:
+            regimes = metrics_df.groupby("strategic_regime")
+            for name, group in regimes:
+                f.write(f"| {name} | {len(group)} | {group['confidence'].mean():.1f} |\n")
             
     return metrics_df
 

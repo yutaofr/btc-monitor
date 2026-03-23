@@ -1,236 +1,200 @@
 import pandas as pd
 import numpy as np
-import os
 import requests
+import os
 from src.config import Config
 from src.fetchers.blockchain_fetcher import BlockchainFetcher
 from src.fetchers.binance_fetcher import BinanceFetcher
-from src.fetchers.fred_fetcher import FredFetcher
-from src.indicators.base import IndicatorResult, calculate_rsi
-
-def _load_btc_daily(start_iso="2016-01-01T00:00:00Z"):
-    """Load real BTC daily data from Binance with local fallback."""
-    df = pd.DataFrame()
-    source = "binance"
-    
-    try:
-        # Check local cache first to avoid rate limits
-        path = "data/btc_daily.csv"
-        if os.path.exists(path):
-            df = pd.read_csv(path, index_col=0, parse_dates=True)
-            source = "local_csv"
-        else:
-            fetcher = BinanceFetcher()
-            df = fetcher.fetch_full_history(since_iso=start_iso)
-            if df is not None and not df.empty:
-                os.makedirs("data", exist_ok=True)
-                df.to_csv(path)
-    except Exception as e:
-        print(f"[ERROR] Real BTC data load failed: {e}")
-        
-    return df, source
-
-def _to_weekly_ohlcv(daily_df):
-    """Convert daily to weekly OHLCV."""
-    if daily_df is None or daily_df.empty: return pd.DataFrame()
-    return daily_df.resample("W-FRI").agg({
-        "open": "first",
-        "high": "max",
-        "low": "min",
-        "close": "last"
-    })
+from src.indicators.base import IndicatorResult
+from fredapi import Fred
 
 def _load_macro_series(index):
-    """Load REAL macro series from FRED aligned with the provided index."""
     if not Config.FRED_API_KEY:
-        return None, None
-        
+        return None, None, None
     try:
-        fetcher = FredFetcher()
-        # FredFetcher.get_series defaults to 10, we need more for 10 years
-        # But FredFetcher.get_net_liquidity is hardcoded to short limits
-        # I'll use raw fredapi access here for backtest depth
-        from fredapi import Fred
         fred = Fred(api_key=Config.FRED_API_KEY)
+        # WALCL (Fed Assets), DGS10 (10Y Yield), DTWEXBGS (Broad Dollar)
+        walcl = fred.get_series("WALCL", observation_start="2010-01-01")
+        yields = fred.get_series("DGS10", observation_start="2010-01-01")
+        dxy = fred.get_series("DTWEXBGS", observation_start="2010-01-01")
+        if dxy is None or dxy.empty:
+            dxy = fred.get_series("DTWEXAFEGS", observation_start="2010-01-01")
+            
+        df = pd.DataFrame({"walcl": walcl, "yields": yields, "dxy": dxy}).ffill().bfill()
+        df = df.resample("D").mean().ffill().bfill()
         
-        walcl = fred.get_series("WALCL")
-        tga = fred.get_series("WTREGEN")
-        rrp = fred.get_series("RRPONTSYD")
-        yields = fred.get_series("DGS10")
-        
-        walcl_w = walcl.resample("W-FRI").last()
-        tga_w = tga.resample("W-FRI").last()
-        rrp_w = rrp.resample("W-FRI").last()
-        
-        net_liq = (walcl_w - tga_w - rrp_w).reindex(index).ffill().bfill()
-        yields_w = yields.resample("W-FRI").last().reindex(index).ffill().bfill()
-        
-        return net_liq, yields_w
+        return df["walcl"].reindex(index).ffill().bfill(), \
+               df["yields"].reindex(index).ffill().bfill(), \
+               df["dxy"].reindex(index).ffill().bfill()
     except Exception as e:
         print(f"[ERROR] Macro data fetch failed: {e}")
-        return None, None
+        return None, None, None
 
 def _prepare_valuation_series(index):
-    """Prepares valuation series (MVRV, Puell) from REAL Blockchain.info data."""
     try:
         fetcher = BlockchainFetcher()
         timespan = "10years"
-        # market-cap and miners-revenue were tested and working
-        m_cap = fetcher.get_market_cap(timespan=timespan)
-        rev = fetcher.get_miners_revenue(timespan=timespan)
+        m_cap = fetcher.get_market_cap(timespan)
+        rev = fetcher.get_miners_revenue(timespan)
+        hash_rate = fetcher.get_hash_rate(timespan)
         
-        if m_cap is None or rev is None:
-            return None, None
+        # Fallbacks for missing charts
+        if it_any_is_none := [m_cap is None, rev is None, hash_rate is None]:
+            if m_cap is None: print("[ERROR] Market Cap fetch failed")
+            if rev is None: print("[ERROR] Revenue fetch failed")
+            if hash_rate is None: print("[ERROR] Hashrate fetch failed")
             
-        # Reindex and handle sparse data
-        m_cap_s = m_cap["value"].reindex(index).ffill()
-        rev_s = rev["value"].reindex(index).ffill()
+        m_cap_d = m_cap["value"].resample("D").mean().ffill() if m_cap is not None else None
+        rev_d = rev["value"].resample("D").mean().ffill() if rev is not None else None
+        hash_d = hash_rate["value"].resample("D").mean().ffill() if hash_rate is not None else None
         
-        # Calculate proxies based on available data
-        # MVRV Proxy: price / 2-year MA price (approximate from market-cap chart)
-        mvrv_df = pd.DataFrame({
-            "price": m_cap_s,
-            "ma_730": m_cap_s.rolling(104).mean() # 104 weeks = 2 years
-        }).ffill().bfill()
-        
-        # Puell: revenue / 1-year MA revenue
-        puell_df = pd.DataFrame({
-            "revenue": rev_s,
-            "ma_365": rev_s.rolling(52).mean() # 52 weeks = 1 year
-        }).ffill().bfill()
-        
-        return mvrv_df, puell_df
+        return pd.DataFrame({"m_cap": m_cap_d.reindex(index).ffill().bfill() if m_cap_d is not None else None}, index=index), \
+               pd.DataFrame({"revenue": rev_d.reindex(index).ffill().bfill() if rev_d is not None else None}, index=index), \
+               pd.DataFrame({"value": hash_d.reindex(index).ffill().bfill() if hash_d is not None else None}, index=index)
     except Exception as e:
-        print(f"[ERROR] Valuation data fetch failed: {e}")
-        return None, None
+        print(f"[ERROR] Valuation data prep failed: {e}")
+        return None, None, None
 
 def _score_technical(weekly, rsi_weekly, idx):
-    """Score technical indicators based on REAL data."""
     results = []
-    
-    # 200WMA
-    price = float(weekly["close"].iloc[idx])
+    price = weekly["close"].iloc[idx]
     ma200 = weekly["close"].rolling(200).mean().iloc[idx]
-    if pd.isna(ma200):
-        results.append(IndicatorResult("200WMA", 0.0, is_valid=False))
-    else:
-        ratio = price / ma200
-        if ratio <= 1.0: score = 10.0
-        elif ratio >= 3.0: score = -10.0
-        else: score = 10.0 - (ratio - 1.0) * (20.0 / 2.0)
-        results.append(IndicatorResult("200WMA", round(score, 2)))
-        
-    # RSI Weekly
+    score_200 = 0.0
+    if not np.isnan(ma200):
+        dist = (price - ma200) / ma200
+        if dist < 0: score_200 = min(10.0, abs(dist) * 50)
+        else: score_200 = max(-10.0, -dist * 20)
+        results.append(IndicatorResult("200WMA", round(score_200, 2), True))
+    else: results.append(IndicatorResult("200WMA", 0.0, False))
+
     rsi = rsi_weekly.iloc[idx]
-    if pd.isna(rsi):
-        results.append(IndicatorResult("RSI_Weekly", 0.0, is_valid=False))
-    else:
-        if rsi <= 30: score = 10.0
-        elif rsi >= 85: score = -10.0
-        elif rsi <= 50: score = 8.0
-        else: score = 8.0 - (rsi - 50) * (18.0 / 35.0)
-        results.append(IndicatorResult("RSI_Weekly", round(score, 2)))
-        
+    if not np.isnan(rsi):
+        rsi_score = (50 - rsi) / 2
+        results.append(IndicatorResult("RSI_Weekly", round(max(-10, min(10, rsi_score)), 2), True))
+    else: results.append(IndicatorResult("RSI_Weekly", 0.0, False))
+
+    ema26 = weekly["close"].ewm(span=26).mean().iloc[idx]
+    stretch_score = 0.0
+    if not np.isnan(ema26):
+        dist_ema = (price - ema26) / ema26
+        if dist_ema > 0.2: stretch_score = -10.0
+        elif dist_ema > 0.1: stretch_score = -5.0
+        results.append(IndicatorResult("Short_Term_Stretch", round(stretch_score, 2), True))
+    else: results.append(IndicatorResult("Short_Term_Stretch", 0.0, False))
     return results
 
-def _score_macro(net_liq, yields, idx):
-    """Score macro indicators based on REAL data."""
-    if net_liq is None or yields is None:
-        return [
-            IndicatorResult("Net_Liquidity", 0.0, is_valid=False),
-            IndicatorResult("Yields", 0.0, is_valid=False)
-        ]
-        
+def _score_macro(net_liq, yields, dxy, idx):
     results = []
-    # Liquidity vs 12m MA
-    try:
-        curr_liq = net_liq.iloc[idx]
+    if net_liq is not None:
+        liq = net_liq.iloc[idx]
         ma_liq = net_liq.rolling(52).mean().iloc[idx]
-        if pd.isna(ma_liq):
-            results.append(IndicatorResult("Net_Liquidity", 0.0, is_valid=False))
-        else:
-            ratio = curr_liq / ma_liq
-            if ratio >= 1.1: score = 10.0
-            elif ratio <= 0.9: score = -10.0
-            else: score = (ratio - 1.0) * (20.0 / 0.2)
-            results.append(IndicatorResult("Net_Liquidity", round(score, 2)))
-    except Exception:
-        results.append(IndicatorResult("Net_Liquidity", 0.0, is_valid=False))
-        
-    # Yields level
-    try:
-        y = yields.iloc[idx]
-        if pd.isna(y):
-            results.append(IndicatorResult("Yields", 0.0, is_valid=False))
-        else:
-            if y <= 1.5: score = 10.0
-            elif y >= 5.5: score = -10.0
-            else: score = 5.0 - (y - 3.5) * (15.0 / 2.0)
-            results.append(IndicatorResult("Yields", round(score, 2)))
-    except Exception:
-        results.append(IndicatorResult("Yields", 0.0, is_valid=False))
-        
+        if not np.isnan(ma_liq):
+            dist = (liq - ma_liq) / ma_liq
+            liq_score = min(10.0, max(-10.0, dist * 100))
+            results.append(IndicatorResult("Net_Liquidity", round(liq_score, 2), True))
+        else: results.append(IndicatorResult("Net_Liquidity", 0.0, False))
+    else: results.append(IndicatorResult("Net_Liquidity", 0.0, False))
+
+    if yields is not None:
+        y13 = yields.rolling(13).mean().iloc[idx]
+        y52 = yields.rolling(52).mean().iloc[idx]
+        if not np.isnan(y52):
+            dist = (y52 - y13) / y52
+            y_score = min(10.0, max(-10.0, dist * 200))
+            results.append(IndicatorResult("Yields", round(y_score, 2), True))
+        else: results.append(IndicatorResult("Yields", 0.0, False))
+    else: results.append(IndicatorResult("Yields", 0.0, False))
+
+    if dxy is not None:
+        d13 = dxy.rolling(13).mean().iloc[idx]
+        d52 = dxy.rolling(52).mean().iloc[idx]
+        if not np.isnan(d52):
+            dist = (d52 - d13) / d52
+            d_score = min(10.0, max(-10.0, dist * 200))
+            results.append(IndicatorResult("DXY_Regime", round(d_score, 2), True))
+        else: results.append(IndicatorResult("DXY_Regime", 0.0, False))
+    else: results.append(IndicatorResult("DXY_Regime", 0.0, False))
     return results
 
-def _score_valuation(mvrv_w, puell_w, idx):
-    """Score valuation indicators based on REAL data."""
-    if mvrv_w is None or puell_w is None:
-        return [
-            IndicatorResult("MVRV_Proxy", 0.0, is_valid=False),
-            IndicatorResult("Puell_Multiple", 0.0, is_valid=False)
-        ]
-        
+def _score_valuation(m_cap_df, puell_df, hash_df, weekly, idx):
+    """
+    Score valuation block using available fundamentals and cyclic proxies.
+    """
     results = []
-    # MVRV Proxy
-    try:
-        ratio = float(mvrv_w["price"].iloc[idx] / mvrv_w["ma_730"].iloc[idx])
-        if ratio <= 0.9: score = 10.0
-        elif ratio >= 3.7: score = -10.0
-        else: score = 8.0 - (ratio - 1.2) * (18.0 / 2.5)
-        results.append(IndicatorResult("MVRV_Proxy", round(score, 2)))
-    except Exception:
-        results.append(IndicatorResult("MVRV_Proxy", 0.0, is_valid=False))
-        
-    # Puell
-    try:
-        ratio = float(puell_w["revenue"].iloc[idx] / puell_w["ma_365"].iloc[idx])
-        if ratio <= 0.5: score = 10.0
-        elif ratio >= 2.5: score = -10.0
-        else: score = 6.0 - (ratio - 1.0) * (16.0 / 1.5)
-        results.append(IndicatorResult("Puell_Multiple", round(score, 2)))
-    except Exception:
-        results.append(IndicatorResult("Puell_Multiple", 0.0, is_valid=False))
-        
+    price = weekly["close"].iloc[idx]
+    ma200 = weekly["close"].rolling(200).mean().iloc[idx]
+    
+    # 1. MVRV Proxy: Distance from 200WMA (Reliable циклическая floor)
+    if not np.isnan(ma200):
+        # Scale: Price < MA200 -> Bullish. Price > 2.5*MA200 -> Bearish
+        ratio = price / ma200
+        if ratio < 1.0: mvrv_score = (1.0 - ratio) * 50 # 0.8 -> 10.0
+        else: mvrv_score = (1.0 - ratio) * 6.6 # 2.5 -> -10.0
+        results.append(IndicatorResult("MVRV_Proxy", round(max(-10, min(10, mvrv_score)), 2), True))
+    else: results.append(IndicatorResult("MVRV_Proxy", 0.0, False))
+
+    # 2. Puell Multiple (Miners Revenue vs 52w MA)
+    if puell_df is not None:
+        rev = puell_df["revenue"].iloc[idx]
+        rev_ma = puell_df["revenue"].rolling(52).mean().iloc[idx]
+        if not np.isnan(rev_ma):
+            multiple = rev / rev_ma
+            if multiple < 1.0: puell_score = (1.0 - multiple) * 20 # 0.5 -> 10.0
+            else: puell_score = (1.0 - multiple) * 5.0 # 3.0 -> -10.0
+            results.append(IndicatorResult("Puell_Multiple", round(max(-10, min(10, puell_score)), 2), True))
+        else: results.append(IndicatorResult("Puell_Multiple", 0.0, False))
+    else: results.append(IndicatorResult("Puell_Multiple", 0.0, False))
+
+    # 3. Hash Ribbon (1w vs 8w MA)
+    if hash_df is not None:
+        ma1 = hash_df["value"].iloc[idx]
+        ma8 = hash_df["value"].rolling(8).mean().iloc[idx]
+        if not np.isnan(ma8):
+            dist = (ma1 - ma8) / ma8
+            hash_score = min(10.0, max(-10.0, dist * 100))
+            results.append(IndicatorResult("Hash_Ribbon", round(hash_score, 2), True))
+        else: results.append(IndicatorResult("Hash_Ribbon", 0.0, False))
+    else: results.append(IndicatorResult("Hash_Ribbon", 0.0, False))
     return results
+
+def _load_btc_daily():
+    try:
+        df = pd.read_csv("data/btc_daily.csv", index_col=0, parse_dates=True)
+        return df, "local_csv"
+    except: return None, None
+
+def _to_weekly_ohlcv(df):
+    logic = {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
+    return df.resample("W").apply(logic)
+
+def calculate_rsi(series, period=14):
+    delta = series.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
 
 def _prepare_fng_series(index):
-    """Fetch historical Fear & Greed data from Alternative.me."""
     try:
-        url = "https://api.alternative.me/fng/?limit=0"
-        resp = requests.get(url, timeout=15)
-        data = resp.json()
-        if "data" not in data:
-            return None
-            
-        fng_list = data["data"]
-        df = pd.DataFrame(fng_list)
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
+        resp = requests.get("https://api.alternative.me/fng/?limit=5000", timeout=10)
+        df = pd.DataFrame(resp.json()["data"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"].astype(int), unit="s")
         df["value"] = pd.to_numeric(df["value"])
         df.set_index("timestamp", inplace=True)
-        
-        # Sort by index and reindex to match backtest timeline
         df.sort_index(inplace=True)
         return df["value"].reindex(index).ffill().bfill()
-    except Exception as e:
-        print(f"[ERROR] FnG historical fetch failed: {e}")
-        return None
+    except: return None
 
-def fetch_prices():
-    """Real price fetcher for main entry point."""
-    df, _ = _load_btc_daily()
-    return df["close"] if df is not None and not df.empty else None
-
-def evaluate_history():
-    """Backtesting entry point for data fetching."""
-    df, _ = _load_btc_daily()
-    return df
+def calculate_forward_returns(prices, date, forward_days=[28, 84, 182]):
+    results = {}
+    try:
+        start_price = prices.loc[date]
+        for days in forward_days:
+            target_date = date + pd.Timedelta(days=days)
+            idx = prices.index.get_indexer([target_date], method='nearest')[0]
+            if idx >= 0:
+                results[f"{days}_day_return"] = (prices.iloc[idx] - start_price) / start_price
+            else: results[f"{days}_day_return"] = None
+    except:
+        for days in forward_days: results[f"{days}_day_return"] = None
+    return results

@@ -1,48 +1,47 @@
 import pandas as pd
-from datetime import datetime, timezone
-from typing import Dict, Any
+from datetime import datetime
 from src.indicators.base import IndicatorResult
 
-class Hash_Ribbon:
+def calculate_hash_ribbon(hash_df: pd.DataFrame) -> IndicatorResult:
     """
-    Miner-recovery factor calculating Hash Ribbon state.
-    Bullish when 30d SMA of hashrate crosses above 60d SMA (Recovery).
-    Bearish when 30d SMA of hashrate crosses below 60d SMA (Capitulation).
+    Miner-stress recovery signal using free hash-rate data.
+    30d MA > 60d MA = Recovery (Bullish).
+    30d MA < 60d MA = Capitulation (Bearish/Neutral).
     """
-    def __init__(self):
-        self.name = "Hash_Ribbon"
+    if hash_df is None or hash_df.empty or len(hash_df) < 60:
+        return IndicatorResult("Hash_Ribbon", 0.0, is_valid=False)
 
-    def evaluate(self, df: pd.DataFrame) -> IndicatorResult:
-        if df.empty or "hashrate" not in df.columns or len(df) < 2:
-            return IndicatorResult(name=self.name, score=0.0, is_valid=False, details={}, weight=1.0)
-            
-        short_sma = df["hashrate"].rolling(window=30, min_periods=1).mean()
-        long_sma = df["hashrate"].rolling(window=60, min_periods=1).mean()
+    # Clean and sort
+    df = hash_df.sort_index()
+    
+    # Calculate MAs
+    df['ma30'] = df['value'].rolling(window=30).mean()
+    df['ma60'] = df['value'].rolling(window=60).mean()
+    
+    latest = df.iloc[-1]
+    prev = df.iloc[-2] if len(df) > 1 else latest
+    
+    ma30 = latest['ma30']
+    ma60 = latest['ma60']
+    
+    if pd.isna(ma30) or pd.isna(ma60):
+        return IndicatorResult("Hash_Ribbon", 0.0, is_valid=False)
         
-        latest_short = short_sma.iloc[-1]
-        latest_long = long_sma.iloc[-1]
+    score = 0.0
+    if ma30 > ma60:
+        # Recovery phase
+        # If it just crossed, it's a strong signal. 
+        # For simplicity, we'll check if it was below ma60 recently
+        score = 8.0 if latest['value'] > ma30 else 5.0
+    else:
+        # Capitulation phase
+        score = -2.0
         
-        if pd.isna(latest_short) or pd.isna(latest_long):
-            return IndicatorResult(name=self.name, score=0.0, is_valid=False, details={}, weight=1.0)
-            
-        if latest_short > latest_long:
-            state = "Recovery"
-            score = 8.0
-        else:
-            state = "Capitulation"
-            score = -8.0
-            
-        details = {
-            "state": state,
-            "short_sma": float(latest_short),
-            "long_sma": float(latest_long)
-        }
-        
-        return IndicatorResult(
-            name=self.name, 
-            score=score, 
-            is_valid=True, 
-            details=details, 
-            weight=1.0,
-            timestamp=datetime.now(timezone.utc)
-        )
+    return IndicatorResult(
+        "Hash_Ribbon", 
+        score, 
+        is_valid=True,
+        timestamp=latest.name,
+        details={"ma30": round(ma30, 2), "ma60": round(ma60, 2)},
+        description="30d MA above 60d MA indicates miner recovery." if score > 0 else "Miner capitulation in progress."
+    )

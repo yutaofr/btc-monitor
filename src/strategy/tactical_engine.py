@@ -1,57 +1,38 @@
-from typing import List
-from src.strategy.factor_models import FactorObservation
-from src.strategy.factor_registry import get_factor
-from src.strategy.policies import TACTICAL_FACTORS, TACTICAL_WEIGHTS
+from typing import List, Dict
+from src.strategy.factor_models import FactorObservation, Layer
 
 class TacticalEngine:
-    def evaluate_tactical(self, observations: List[FactorObservation]) -> str:
+    """
+    Provides short-horizon confirmation or tactical setup status.
+    Uses sentiment, tactical RSI, and short-term stretch.
+    """
+    def __init__(self):
+        pass
+
+    def evaluate_tactical(self, observations: List[FactorObservation]) -> Dict:
         """
-        Evaluate tactical components to refine timing.
-        Returns: FAVORABLE_ADD, NEUTRAL, FAVORABLE_REDUCE, or INSUFFICIENT_DATA.
+        Returns a summary of tactical evidence.
         """
-        tactical_scores = []
+        tactical_obs = [o for o in observations if get_layer(o.name) == Layer.TACTICAL.value and o.is_valid]
         
-        for obs in observations:
-            if not obs.is_valid:
-                continue
-                
-            try:
-                definition = get_factor(obs.name)
-            except KeyError:
-                continue
-                
-            if definition.layer == "tactical":
-                tactical_scores.append(obs.score)
-                
-        if not tactical_scores:
-            return "INSUFFICIENT_DATA"
-            
-        avg_score = sum(tactical_scores) / len(tactical_scores)
+        if not tactical_obs:
+            return {"tactical_bias": "NEUTRAL", "tactical_score": 0.0, "counts": 0}
+
+        avg_score = sum(o.score for o in tactical_obs) / len(tactical_obs)
         
-        if avg_score >= 5.0:
-            return "FAVORABLE_ADD"
-        elif avg_score <= -5.0:
-            return "FAVORABLE_REDUCE"
-        else:
-            return "NEUTRAL"
+        bias = "NEUTRAL"
+        if avg_score > 5.0: bias = "BULLISH_CONFIRMED"
+        elif avg_score < -5.0: bias = "BEARISH_CONFIRMED"
 
-    # Legacy methods for backward compatibility during migration
-    def _relevant_results(self, results):
-        for result in results:
-            if result.name in TACTICAL_FACTORS and result.is_valid:
-                yield result
+        return {
+            "tactical_bias": bias,
+            "tactical_score": avg_score,
+            "counts": len(tactical_obs)
+        }
 
-    def calculate_score(self, results):
-        valid_weighted_sum = 0.0
-        total_weight = 0.0
-
-        for result in self._relevant_results(results):
-            weight = TACTICAL_WEIGHTS.get(result.name, getattr(result, 'weight', 1.0))
-            valid_weighted_sum += getattr(result, 'score', 0.0) * weight
-            total_weight += weight
-
-        if total_weight == 0:
-            return 0.0
-
-        return round((valid_weighted_sum / total_weight) * 10, 2)
-
+def get_layer(name: str):
+    from src.strategy.factor_registry import get_factor
+    try:
+        return get_factor(name).layer
+    except KeyError:
+        return Layer.RESEARCH

@@ -43,62 +43,60 @@ class MacroIndicator:
 
     def get_yield_divergence_score(self):
         """
-        Monitor US10Y (Yields) as a regime.
-        High/rising yields = Bad for Risk assets. Falling = Good.
+        Evaluate US10Y (Yields) through a 30/90-day SMA regime.
+        Falling (30 < 90) = Bullish (+6.0). Rising (30 > 90) = Bearish (-6.0).
         """
         yields = self.fetcher.get_us10y()
-        if yields is None or len(yields) < 3:
+        if yields is None or len(yields) < 90:
             return IndicatorResult("Yields", 0, description="Insufficient data", is_valid=False)
 
-        curr_yield = yields.iloc[-1]
+        sma30 = yields.rolling(window=30).mean().iloc[-1]
+        sma90 = yields.rolling(window=90).mean().iloc[-1]
         
-        # Simple regime check: current vs SMA (or just simple trend if not enough data)
-        sma = yields.mean()
-        
-        if curr_yield < sma:
-            score = 5.0 # Yields falling below moving average, favorable regime
-            desc = "falling regime"
-        elif curr_yield > sma * 1.02:
-            score = -5.0 # Yields rising above moving average, tight regime
-            desc = "rising regime"
+        if pd.isna(sma30) or pd.isna(sma90):
+            return IndicatorResult("Yields", 0, description="SMA calculation failed", is_valid=False)
+
+        if sma30 < sma90:
+            score = 6.0 
+            desc = "falling regime (30d < 90d SMA)"
         else:
-            score = 0
-            desc = "stable regime"
+            score = -6.0
+            desc = "rising regime (30d > 90d SMA)"
             
         return IndicatorResult(
             name="Yields",
             score=score,
-            details={"current": curr_yield, "sma": sma, "regime": desc},
+            details={"current": yields.iloc[-1], "sma30": sma30, "sma90": sma90},
             description=f"Yields are in a {desc}",
             timestamp=datetime.now(timezone.utc)
         )
 
     def get_dxy_regime_score(self):
         """
-        Evaluate DXY (Dollar Index) regime.
-        Falling dollar = Bullish for BTC. Rising dollar = Bearish.
+        Evaluate DXY (Dollar Index) through a 30/90-day SMA regime.
+        Falling dollar = Bullish (+6.0). Rising dollar = Bearish (-6.0).
         """
         dxy = self.fetcher.get_dxy()
-        if dxy is None or len(dxy) < 3:
+        if dxy is None or len(dxy) < 90:
             return IndicatorResult("DXY_Regime", 0, description="Insufficient data", is_valid=False)
 
-        curr_dxy = dxy.iloc[-1]
-        sma = dxy.mean()
+        sma30 = dxy.rolling(window=30).mean().iloc[-1]
+        sma90 = dxy.rolling(window=90).mean().iloc[-1]
         
-        if curr_dxy < sma:
-            score = 6.0 # DXY falling
-            desc = "falling regime"
-        elif curr_dxy > sma:
-            score = -6.0 # DXY rising
-            desc = "rising regime"
+        if pd.isna(sma30) or pd.isna(sma90):
+            return IndicatorResult("DXY_Regime", 0, description="SMA calculation failed", is_valid=False)
+
+        if sma30 < sma90:
+            score = 6.0 
+            desc = "falling regime (30d < 90d SMA)"
         else:
-            score = 0
-            desc = "stable regime"
+            score = -6.0
+            desc = "rising regime (30d > 90d SMA)"
             
         return IndicatorResult(
             name="DXY_Regime",
             score=score,
-            details={"current": curr_dxy, "sma": sma, "regime": desc},
+            details={"current": dxy.iloc[-1], "sma30": sma30, "sma90": sma90},
             description=f"DXY is in a {desc}",
             timestamp=datetime.now(timezone.utc)
         )
