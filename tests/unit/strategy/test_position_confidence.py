@@ -50,15 +50,13 @@ def test_confidence_determinism():
     
     assert rec1.confidence == rec2.confidence
 
-def test_low_quality_evidence_low_confidence():
-    """Verify confidence is low when many factors are invalid."""
+def test_low_quality_evidence_is_insufficient_data():
+    """Verify all-invalid observations yield INSUFFICIENT_DATA (fail-closed)."""
     engine = PositionAdvisoryEngine()
     obs = [
         make_obs("MVRV_Proxy", 6.0, is_valid=False),
-        make_obs("200WMA", 6.0, is_valid=False)
+        make_obs("200WMA", 6.0, is_valid=False),
+        make_obs("Net_Liquidity", 6.0, is_valid=False),
     ]
     rec = engine.evaluate(obs)
-    # The engine should return INSUFFICIENT_DATA or low confidence
-    # Based on Current PositionAdvisoryEngine: INSUFFICIENT_DATA has confidence 50
-    # But for US 2.2 we might want to tighten this.
-    pass 
+    assert rec.action == "INSUFFICIENT_DATA"

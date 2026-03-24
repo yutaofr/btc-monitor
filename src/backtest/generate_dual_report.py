@@ -47,11 +47,15 @@ def _write_branch_metrics(f, df, actions):
 
 def _calc_prec(subset, col):
     if col not in subset.columns: return "N/A"
-    vals = subset[col].dropna().map(lambda x: 1.0 if x == True or x == "True" else 0.0)
+    # CSV serialization may store booleans as strings ("True"/"False") or numerics
+    raw = subset[col].dropna().astype(str).str.strip().str.lower()
+    vals = raw.map({"true": 1.0, "false": 0.0, "1.0": 1.0, "0.0": 0.0, "1": 1.0, "0": 0.0})
+    vals = vals.dropna()
     n = len(vals)
     if n == 0: return "N/A"
     if n < 5: return f"{vals.mean():.1%} (N={n}) ⚠️"
     return f"{vals.mean():.1%} (N={n})"
+
 
 if __name__ == "__main__":
     generate_report(
