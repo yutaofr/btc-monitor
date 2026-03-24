@@ -17,22 +17,9 @@ def generate_report(pos_csv, cash_csv, report_path):
             f.write("\n## 2. Incremental Cash Advisory Performance\n")
             _write_branch_metrics(f, cash_df, ["BUY_NOW", "STAGGER_BUY"])
             
-            f.write("\n### 2.1 Benchmark-Aware Timing (BUY_NOW vs DCA)\n")
-            buy_now = cash_df[cash_df["action"] == "BUY_NOW"]
-            if not buy_now.empty:
-                f.write("| Window | Avg Rel Perf (%) | N | Success Rate (>0) |\n")
-                f.write("|--------|------------------|---|-------------------|\n")
-                for win in [28, 84]:
-                    col = f"rel_dca_perf_{win}"
-                    if col in buy_now.columns:
-                        vals = buy_now[col].dropna()
-                        if not vals.empty:
-                            avg = vals.mean()
-                            n = len(vals)
-                            success = (vals > 0).mean()
-                            f.write(f"| {win}d | {avg:.2f}% | {n} | {success:.1%} |\n")
-            else:
-                f.write("No BUY_NOW samples found.\n")
+            f.write("\n### 2.1 Benchmark-Aware Timing vs DCA\n")
+            _write_cash_timing_metrics(f, cash_df, "BUY_NOW", ">", "BUY_NOW beats DCA")
+            _write_cash_timing_metrics(f, cash_df, "STAGGER_BUY", "<", "DCA beats immediate buy")
 
 def _write_branch_metrics(f, df, actions):
     f.write("| Action | Count | 28d Precision | 84d Precision | 182d Precision |\n")
@@ -55,6 +42,39 @@ def _calc_prec(subset, col):
     if n == 0: return "N/A"
     if n < 5: return f"{vals.mean():.1%} (N={n}) ⚠️"
     return f"{vals.mean():.1%} (N={n})"
+
+
+def _write_cash_timing_metrics(f, df, action, direction_symbol, success_label):
+    subset = df[df["action"] == action]
+    f.write(f"\n#### {action} ({success_label})\n")
+    if subset.empty:
+        f.write("No samples found.\n")
+        return
+
+    f.write("| Window | Avg Rel Perf (%) | N | Success Rate |\n")
+    f.write("|--------|------------------|---|--------------|\n")
+    for win in [28, 84]:
+        perf_col = f"rel_dca_perf_{win}"
+        success_col = f"timing_success_{win}"
+        if perf_col not in subset.columns:
+            continue
+
+        vals = subset[perf_col].dropna()
+        if vals.empty:
+            continue
+
+        avg = vals.mean()
+        n = len(vals)
+
+        if success_col in subset.columns:
+            success_vals = subset[success_col].dropna().astype(bool)
+            success = success_vals.mean() if not success_vals.empty else float("nan")
+            success_str = "N/A" if pd.isna(success) else f"{success:.1%}"
+        else:
+            success = (vals > 0).mean() if direction_symbol == ">" else (vals < 0).mean()
+            success_str = f"{success:.1%}"
+
+        f.write(f"| {win}d | {avg:.2f}% | {n} | {success_str} |\n")
 
 
 if __name__ == "__main__":

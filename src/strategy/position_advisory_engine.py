@@ -1,7 +1,7 @@
 from typing import List
 from datetime import datetime
 from src.strategy.factor_models import FactorObservation, Recommendation, PositionAction, Layer
-from src.strategy.factor_registry import get_factor
+from src.strategy.factor_registry import get_factor, get_all_factors
 from src.strategy.strategic_engine import StrategicEngine, StrategicRegime
 from src.strategy.tactical_engine import TacticalEngine
 from src.strategy.calibration import PositionCalibrator
@@ -29,6 +29,7 @@ class PositionAdvisoryEngine:
         confidence = 50
         summary = "Market is in a neutral or transitional phase."
         blocked_reasons = []
+        missing_required_factors: List[str] = []
 
         if regime == StrategicRegime.INSUFFICIENT_DATA:
             return Recommendation(
@@ -57,6 +58,41 @@ class PositionAdvisoryEngine:
         if regime == StrategicRegime.BULLISH_ACCUMULATION:
             action = PositionAction.ADD
             summary = "High-confidence bullish accumulation regime confirmed."
+
+            # Hard gate: ADD requires required evidence coverage across strategic blocks.
+            required_add_by_block = {}
+            for factor in get_all_factors():
+                if not factor.is_required_for_add:
+                    continue
+                required_add_by_block.setdefault(factor.block, set()).add(factor.name)
+
+            covered_add_blocks = set()
+            for o in observations:
+                if not o.is_valid:
+                    continue
+                try:
+                    defn = get_factor(o.name)
+                except KeyError:
+                    continue
+                if defn.is_required_for_add:
+                    covered_add_blocks.add(defn.block)
+
+            missing_blocks = [
+                block for block in ["valuation", "trend_cycle", "macro_liquidity"]
+                if block not in covered_add_blocks
+            ]
+            missing_required_factors = sorted(
+                {
+                    name
+                    for block in missing_blocks
+                    for name in required_add_by_block.get(block, set())
+                }
+            )
+            if missing_blocks:
+                action = PositionAction.HOLD
+                confidence = 50
+                summary = "Required ADD evidence is incomplete."
+                blocked_reasons.append("Required ADD block coverage missing")
 
             # Check evidence overload
             is_evidence_overload = False
@@ -106,6 +142,58 @@ class PositionAdvisoryEngine:
         elif regime == StrategicRegime.OVERHEATED:
             action = PositionAction.REDUCE
             summary = "Market showing signs of cyclical overheating."
+
+            # Hard gate: REDUCE requires trend-cycle required evidence plus one additional
+            # strategic block (valuation or macro_liquidity) as context confirmation.
+            required_reduce_by_block = {}
+            for factor in get_all_factors():
+                if not factor.is_required_for_reduce:
+                    continue
+                required_reduce_by_block.setdefault(factor.block, set()).add(factor.name)
+
+            covered_reduce_blocks = set()
+            for o in observations:
+                if not o.is_valid:
+                    continue
+                try:
+                    defn = get_factor(o.name)
+                except KeyError:
+                    continue
+                if defn.is_required_for_reduce:
+                    covered_reduce_blocks.add(defn.block)
+
+            has_trend = "trend_cycle" in covered_reduce_blocks
+            has_confirming_block = False
+            for o in observations:
+                if not o.is_valid:
+                    continue
+                try:
+                    defn = get_factor(o.name)
+                except KeyError:
+                    continue
+                if defn.layer != Layer.STRATEGIC.value:
+                    continue
+                if defn.block in ["valuation", "macro_liquidity"]:
+                    has_confirming_block = True
+                    break
+            if not has_trend or not has_confirming_block:
+                missing_blocks = []
+                if not has_trend:
+                    missing_blocks.append("trend_cycle")
+                if not has_confirming_block:
+                    missing_blocks.append("confirming_strategic_block")
+
+                missing_required_factors = sorted(
+                    {
+                        name
+                        for block in missing_blocks
+                        for name in required_reduce_by_block.get(block, set())
+                    }
+                )
+                action = PositionAction.HOLD
+                confidence = 50
+                summary = "Required REDUCE evidence is incomplete."
+                blocked_reasons.append("Required REDUCE evidence coverage missing")
 
             if agreement_weight < 4.5:
                 action = PositionAction.HOLD
@@ -211,7 +299,7 @@ class PositionAdvisoryEngine:
             supporting_factors=supporting[:5],
             conflicting_factors=conflicting[:5],
             missing_required_blocks=[],
-            missing_required_factors=[],
+            missing_required_factors=missing_required_factors,
             blocked_reasons=blocked_reasons,
             freshness_warnings=warnings,
             excluded_research_factors=research,

@@ -33,12 +33,20 @@ class CashBacktestRunner(BaseBacktestRunner):
                     res[f"precision_{win}"] = evaluate_precision(rec.action, fwd_returns[col])
             
             # Benchmark DCA Performance (Relative)
-            # Compare BUY_NOW vs DCA over the next 28, 84 days
-            if rec.action == "BUY_NOW":
+            # Validate both BUY_NOW and STAGGER_BUY against a DCA benchmark:
+            # - BUY_NOW succeeds if lump-sum outperforms DCA (rel_dca_perf > 0)
+            # - STAGGER_BUY succeeds if DCA outperforms lump-sum (rel_dca_perf < 0)
+            if rec.action in ["BUY_NOW", "STAGGER_BUY"]:
                 for win in [28, 84]:
-                    res[f"rel_dca_perf_{win}"] = calculate_benchmark_dca_return(
+                    rel_perf = calculate_benchmark_dca_return(
                         self.daily_df["close"], timestamp, win
                     )
+                    res[f"rel_dca_perf_{win}"] = rel_perf
+                    if rel_perf is not None:
+                        if rec.action == "BUY_NOW":
+                            res[f"timing_success_{win}"] = rel_perf > 0
+                        else:
+                            res[f"timing_success_{win}"] = rel_perf < 0
             
             records.append(res)
             

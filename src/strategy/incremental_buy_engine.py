@@ -1,6 +1,6 @@
 from typing import List
 from src.strategy.factor_models import FactorObservation, Recommendation, CashAction, Layer
-from src.strategy.factor_registry import get_factor
+from src.strategy.factor_registry import get_factor, get_all_factors
 from src.strategy.strategic_engine import StrategicEngine, StrategicRegime
 from src.strategy.tactical_engine import TacticalEngine
 from src.strategy.calibration import CashCalibrator
@@ -29,6 +29,7 @@ class IncrementalBuyEngine:
         confidence = 50
         summary = "Market environment does not favor immediate lump-sum deployment."
         blocked_reasons = []
+        missing_required_factors: List[str] = []
 
         if regime == StrategicRegime.INSUFFICIENT_DATA:
             return Recommendation(
@@ -53,6 +54,40 @@ class IncrementalBuyEngine:
         if regime == StrategicRegime.BULLISH_ACCUMULATION:
             action = CashAction.BUY_NOW
             summary = "Macro and valuation setup favor immediate deployment."
+
+            # Hard gate: BUY_NOW requires required evidence coverage across strategic blocks.
+            required_by_block = {}
+            for factor in get_all_factors():
+                if not factor.is_required_for_buy_now:
+                    continue
+                required_by_block.setdefault(factor.block, set()).add(factor.name)
+
+            covered_required_blocks = set()
+            for o in observations:
+                if not o.is_valid:
+                    continue
+                try:
+                    defn = get_factor(o.name)
+                except KeyError:
+                    continue
+                if defn.is_required_for_buy_now:
+                    covered_required_blocks.add(defn.block)
+
+            missing_blocks = [
+                block for block in ["valuation", "trend_cycle", "macro_liquidity"]
+                if block not in covered_required_blocks
+            ]
+            missing_required_factors = sorted(
+                {
+                    name
+                    for block in missing_blocks
+                    for name in required_by_block.get(block, set())
+                }
+            )
+            if missing_blocks:
+                action = CashAction.STAGGER_BUY
+                summary = "Strategic regime is bullish, but required BUY_NOW evidence is incomplete."
+                blocked_reasons.append("Required BUY_NOW block coverage missing")
 
             # Tactical Veto for BUY_NOW — downgrade to STAGGER_BUY
             if tactical_info["tactical_bias"] == "BEARISH_CONFIRMED":
@@ -131,7 +166,7 @@ class IncrementalBuyEngine:
             supporting_factors=supporting[:5],
             conflicting_factors=conflicting[:5],
             missing_required_blocks=[],
-            missing_required_factors=[],
+            missing_required_factors=missing_required_factors,
             blocked_reasons=blocked_reasons,
             freshness_warnings=warnings,
             excluded_research_factors=research,

@@ -57,3 +57,21 @@ def test_stagger_buy_on_bullish_regime_with_tactical_veto():
     ]
     rec = engine.evaluate(obs)
     assert rec.action == "STAGGER_BUY"
+
+def test_buy_now_requires_required_factor_set():
+    """Verify BUY_NOW is downgraded when required buy-now factors are missing/invalid."""
+    engine = IncrementalBuyEngine()
+    obs = [
+        make_obs("MVRV_Proxy", 7.0),
+        make_obs("Puell_Multiple", 7.0),
+        make_obs("200WMA", 7.0),
+        make_obs("Cycle_Pos", 7.0),
+        make_obs("Net_Liquidity", 7.0, is_valid=False),  # required_for_buy_now but invalid
+        make_obs("Yields", 7.0, is_valid=False),         # required_for_buy_now but invalid
+        make_obs("DXY_Regime", 7.0),                     # keeps macro block present -> bullish regime still possible
+        make_obs("RSI_Div", 7.0),
+    ]
+    rec = engine.evaluate(obs)
+    assert rec.action == "STAGGER_BUY"
+    assert "Yields" in rec.missing_required_factors
+    assert "Net_Liquidity" in rec.missing_required_factors

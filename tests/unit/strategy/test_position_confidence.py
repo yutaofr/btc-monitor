@@ -60,3 +60,21 @@ def test_low_quality_evidence_is_insufficient_data():
     ]
     rec = engine.evaluate(obs)
     assert rec.action == "INSUFFICIENT_DATA"
+
+def test_add_requires_required_factor_set():
+    """Verify ADD is vetoed when required add factors are missing/invalid."""
+    engine = PositionAdvisoryEngine()
+    obs = [
+        make_obs("MVRV_Proxy", 7.0),
+        make_obs("Puell_Multiple", 7.0),
+        make_obs("200WMA", 7.0),
+        make_obs("Cycle_Pos", 7.0),
+        make_obs("Net_Liquidity", 7.0, is_valid=False),  # required_for_add but invalid
+        make_obs("Yields", 7.0, is_valid=False),         # required_for_add but invalid
+        make_obs("DXY_Regime", 7.0),                     # keeps macro block present -> bullish regime still possible
+        make_obs("RSI_Div", 7.0),                 # tactical bullish
+    ]
+    rec = engine.evaluate(obs)
+    assert rec.action == "HOLD"
+    assert "Yields" in rec.missing_required_factors
+    assert "Net_Liquidity" in rec.missing_required_factors
