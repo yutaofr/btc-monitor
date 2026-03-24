@@ -1,5 +1,5 @@
 # High-Confidence Advisory Performance Report
-**Generated:** 2026-03-24 08:02:24.882741
+**Generated:** 2026-03-24 18:35:24.825751
 **History Length:** 450 weeks
 
 ## 1. Action Distribution
@@ -23,11 +23,21 @@
 | NEUTRAL | 332 | 50.0 | 0.0 |
 | OVERHEATED | 34 | 58.2 | 4.6 |
 
-## 3a. Confidence Bucket Precision (ADD Only)
+## 3a. Confidence Bucket Precision
+
+### ADD
 | Bucket | Count | 28d Precision | 84d Precision | 182d Precision |
 |--------|-------|---------------|---------------|----------------|
 | High (>80) | 8 | 12.5% (N=8) | 12.5% (N=8) | 12.5% (N=8) |
 | Medium (60-79) | 8 | 12.5% (N=8) | 12.5% (N=8) | 12.5% (N=8) |
+| Low (<60) | 0 | Inadequate Sample (N=0) | Inadequate Sample (N=0) | Inadequate Sample (N=0) |
+
+### REDUCE
+| Bucket | Count | 28d Precision | 84d Precision | 182d Precision |
+|--------|-------|---------------|---------------|----------------|
+| High (>80) | 0 | Inadequate Sample (N=0) | Inadequate Sample (N=0) | Inadequate Sample (N=0) |
+| Medium (60-79) | 1 | Inadequate Sample (N=1) | Inadequate Sample (N=1) | Inadequate Sample (N=1) |
+| Low (<60) | 0 | Inadequate Sample (N=0) | Inadequate Sample (N=0) | Inadequate Sample (N=0) |
 
 ## 4. False Positive Analysis
 | Action | Horizon | FP Count | Sample |

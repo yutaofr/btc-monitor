@@ -173,23 +173,26 @@ def _generate_performance_report(df, full_prices, report_path):
             for name, group in regimes:
                 f.write(f"| {name} | {len(group)} | {group['confidence'].mean():.1f} | {group['confidence'].std():.1f} |\n")
 
-        f.write("\n## 3a. Confidence Bucket Precision (ADD Only)\n")
-        f.write("| Bucket | Count | 28d Precision | 84d Precision | 182d Precision |\n|--------|-------|---------------|---------------|----------------|\n")
+        f.write("\n## 3a. Confidence Bucket Precision\n")
         
         def get_bucket(c):
             if c >= 80: return "High (>80)"
             if c >= 60: return "Medium (60-79)"
             return "Low (<60)"
-            
+
         metrics_df["conf_bucket"] = metrics_df["confidence"].apply(get_bucket)
-        add_subset = metrics_df[metrics_df["action"] == "ADD"]
-        if not add_subset.empty:
-            buckets = add_subset.groupby("conf_bucket")
-            for name, group in buckets:
-                p28 = _fmt_prec(pd.DataFrame(group), "precision_28")
-                p84 = _fmt_prec(pd.DataFrame(group), "precision_84")
-                p182 = _fmt_prec(pd.DataFrame(group), "precision_182")
-                f.write(f"| {name} | {len(group)} | {p28} | {p84} | {p182} |\n")
+        bucket_order = ["High (>80)", "Medium (60-79)", "Low (<60)"]
+        for action in ["ADD", "REDUCE"]:
+            action_subset = metrics_df[metrics_df["action"] == action]
+            f.write(f"\n### {action}\n")
+            f.write("| Bucket | Count | 28d Precision | 84d Precision | 182d Precision |\n")
+            f.write("|--------|-------|---------------|---------------|----------------|\n")
+            for bucket in bucket_order:
+                group = action_subset[action_subset["conf_bucket"] == bucket]
+                p28 = _fmt_prec(group, "precision_28")
+                p84 = _fmt_prec(group, "precision_84")
+                p182 = _fmt_prec(group, "precision_182")
+                f.write(f"| {bucket} | {len(group)} | {p28} | {p84} | {p182} |\n")
 
 
         f.write("\n## 4. False Positive Analysis\n")
