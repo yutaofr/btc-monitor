@@ -18,16 +18,17 @@ def test_confidence_monotonicity():
         create_obs("MVRV_Proxy", 10.0), 
         create_obs("200WMA", 10.0),
         create_obs("Net_Liquidity", 10.0),
-        create_obs("Short_Term_Stretch", 0.0), # Tactical Neutral
+        create_obs("FearGreed", 0.0), # Tactical Neutral
     ]
     conf_neutral = engine.evaluate(obs_base).confidence
     
-    # Aligned Bullish
-    obs_aligned = obs_base[:-1] + [create_obs("Short_Term_Stretch", 10.0)]
+    # Aligned Bullish (Positive score for FearGreed means low Fear, which is bullish setup)
+    # Actually FearGreed score is (50-val)/5. Low Val (Fear) = Positive Score.
+    obs_aligned = obs_base[:-1] + [create_obs("FearGreed", 10.0)]
     conf_aligned = engine.evaluate(obs_aligned).confidence
     
     # Conflict Bearish tactical
-    obs_conflict = obs_base[:-1] + [create_obs("Short_Term_Stretch", -10.0)]
+    obs_conflict = obs_base[:-1] + [create_obs("FearGreed", -10.0)]
     conf_conflict = engine.evaluate(obs_conflict).confidence
     
     assert conf_aligned > conf_neutral > conf_conflict

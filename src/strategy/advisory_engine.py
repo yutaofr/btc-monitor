@@ -76,7 +76,9 @@ class AdvisoryEngine:
                     is_evidence_overload = True
             except: pass
 
-            if tactical_info["tactical_bias"] == "BEARISH_CONFIRMED":
+            if tactical_info["tactical_bias"] == "BULLISH_CONFIRMED":
+                confidence += 20
+            elif tactical_info["tactical_bias"] == "BEARISH_CONFIRMED":
                 action = Action.HOLD 
                 confidence = 50
                 summary = "Tactical setup is bearishly overstretched; holding despite bullish regime."

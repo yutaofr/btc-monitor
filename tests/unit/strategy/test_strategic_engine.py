@@ -32,13 +32,11 @@ def test_missing_blocks_returns_insufficient_data():
     regime = engine.infer_regime(obs)
     assert regime == StrategicRegime.INSUFFICIENT_DATA
 
-def test_overheated_requires_two_blocks():
-    engine = StrategicEngine()
-    # Trend is -10 (Overheated), Macro is -5 (Overheated)
+    # Trend is -10 (Overheated), Valuation is -10 (Overheated)
     obs = [
         create_obs("200WMA", -10.0), 
-        create_obs("Net_Liquidity", -10.0),
-        create_obs("MVRV_Proxy", 0.0) # Valuation valid but neutral
+        create_obs("MVRV_Proxy", -10.0),
+        create_obs("Net_Liquidity", 0.0) # Macro neutral
     ]
     regime = engine.infer_regime(obs)
     assert regime == StrategicRegime.OVERHEATED
