@@ -2,13 +2,13 @@
 
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/tests-39%20passed-success.svg)](/tests/unit)
+[![Tests](https://img.shields.io/badge/tests-89%20passed-success.svg)](/tests/unit)
 
 **BTC Monitor** 是一个面向比特币长期投资者的量化决策支持工具。系统采用了“无状态高确信度建议引擎 (Stateless Advisory Engine)”架构，不再直接接管预算与执行，而是通过严谨的证据分块、回退限制与置信度打分，来输出最高质量的长期分批建仓与减仓建议：
 
 1. 当前战略周期是否支持建仓（或减仓）
 2. 战术级别是否确认了相应的时机
-3. 通过严格的操作门槛（Action Gates）给出最终建议：`ADD`、`REDUCE` 或 `HOLD`
+3. 通过严格的操作门槛（Action Gates）给出最终建议：基于存量仓位的 `ADD/REDUCE/HOLD` 与基于增量现金的 `BUY_NOW/STAGGER_BUY/WAIT`
 
 > **核心约束**
 > 本项目禁止使用任何付费 API、付费数据源、试用后收费数据接口或商业终端数据。生产决策仅依赖免费公开数据。
@@ -51,16 +51,24 @@
 - `STAGGER_BUY`
 - `WAIT`
 
-### 3. 建议层 (Advisory Layer)
+### 3. 双分支建议层 (Dual-Branch Advisory Layer)
 
-建议层（`AdvisoryEngine`）严格无状态，评估战略与战术的并发确认情况，输出确信度（Confidence Score, 0-100）与最终动作建议：
+建议层严格无状态且具备双重决策逻辑，通过独立的评估路径处理不同资金性质的需求：
 
-- `ADD`: 明确的增配信号（需战略与战术双确认满足最低阈值）
+#### A. 存量资产管理 (Position Branch)
+评估现有 BTC 仓位的调整建议：
+- `ADD`: 明确的增配信号（需战略与战术双确认且证据完整）
 - `REDUCE`: 明确的减配信号
 - `HOLD`: 不满足操作条件，持币观望
-- `INSUFFICIENT_DATA`: 核心数据缺失，采取保守回退（Fail-Closed）
 
-系统通过独立的评价机制阻拦由于单方面异常引发的伪动作。
+#### B. 增量现金部署 (Incremental Cash Branch)
+评估法币/稳定币新资金的入场时机：
+- `BUY_NOW`: 极高确信度时机，建议立即全额部署当前批次
+- `STAGGER_BUY`: 战略看好但战术存在背离，建议分批部署或等待更优 intra-week 价格
+- `WAIT`: 时机不佳，建议维持 DCA 或持现等待
+
+#### C. 保守回退 (Fail-Closed)
+- `INSUFFICIENT_DATA`: 核心区块数据缺失，或关键门禁（Hard Gates）未通过时，系统会自动降级信号，并在报告中显式列出 `missing_required_factors`。
 
 ---
 
@@ -139,14 +147,20 @@ btc-monitor/
 │   ├── fetchers/
 │   ├── indicators/
 │   ├── strategy/
-│   │   ├── advisory_engine.py
+│   │   ├── position_advisory_engine.py  # 仓位分支
+│   │   ├── incremental_buy_engine.py   # 现金分支
 │   │   ├── factor_models.py
-│   │   ├── factor_registry.py
+│   │   ├── factor_registry.py          # 门禁与因子定义
 │   │   ├── strategic_engine.py
 │   │   ├── tactical_engine.py
+│   │   ├── calibration.py              # 置信度校准器
+│   │   ├── block_utils.py              # 共享聚合工具
 │   │   └── reporting.py
 │   ├── state/
 │   └── backtest/
+│       ├── position_backtest_runner.py
+│       ├── cash_backtest_runner.py
+│       └── generate_dual_report.py
 ├── tests/unit/
 ├── data/
 ├── docs/plans/
@@ -184,7 +198,14 @@ docker run --rm --env-file .env btc-monitor pytest tests/unit
 ### 5. 运行回测
 
 ```bash
-docker run --rm --env-file .env btc-monitor python -m src.backtest.btc_backtest
+# 运行仓位建议回测
+docker compose run --rm app python src/backtest/position_backtest_runner.py
+
+# 运行增量买入回测
+docker compose run --rm app python src/backtest/cash_backtest_runner.py
+
+# 生成双决策对比报告
+docker compose run --rm app python src/backtest/generate_dual_report.py
 ```
 
 ### 6. 使用 docker compose
@@ -255,7 +276,7 @@ docker compose run --rm tests
 - 报告覆盖率诊断
 - live/backtest parity 校验
 
-当前单元测试状态：`39 passed`
+当前单元测试状态：`89 passed`
 
 ---
 

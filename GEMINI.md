@@ -10,14 +10,15 @@
     - `fredapi` (Macro data): Fed liquidity, US Treasury Yields, DXY.
     - `yfinance` (ETF/BITO data): Research-only ETF and options proxies.
     - `Blockchain.info` & `Mempool.space`: Public on-chain fundamental data (MVRV, Puell Multiple, Hashrate).
-- **Advisory Engine**: Orchestrates evaluation, scoring, and output generation via `FactorRegistry`.
-    - **Models**: Outputs explicit `Recommendation` objects with action choices, confidence scores, and precise blocks preventing action.
+- **Advisory Engine**: Dual-branch stateless orchestration via `FactorRegistry`.
+    - **Position Branch** (`PositionAdvisoryEngine`): Outputs `ADD`, `REDUCE`, or `HOLD` for existing portfolio management. Requires comprehensive strategic alignment and tactical confirmation.
+    - **Incremental Cash Branch** (`IncrementalBuyEngine`): Outputs `BUY_NOW`, `STAGGER_BUY`, or `WAIT` for new capital deployment. Evaluated against a time-weighted DCA benchmark.
     - **Strategic Engine**: Evaluates `liquidity`, `valuation`, and `trend` evidence blocks.
     - **Tactical Engine**: Confirms setup momentum via `RSI_Div`, `FearGreed`, and `Short_Term_Stretch`.
     - **Research-only Factors**: Flags like `ETF_Flow` remain visible in reports but strictly isolated from advisory gates or confidence.
-    - **Fail-Closed**: Missing necessary block evidence systematically downgrades the `Recommendation` to `HOLD` via explicit Gate validation (`INSUFFICIENT_DATA` handling).
-- **Factor Registry**: The single source of truth for all indicator metadata (`src/strategy/factor_registry.py`).
-- **Reports**: Explicit markdowns built in `src/strategy/reporting.py` consuming `Recommendation` semantics.
+    - **Fail-Closed & Hard Gating**: Missing necessary block evidence (e.g., missing Macro or Valuation data) systematically blocks aggressive actions (`ADD`, `BUY_NOW`, `REDUCE`), downgrading them to `HOLD`/`WAIT`/`STAGGER_BUY` via explicit `missing_required_factors` validation.
+- **Factor Registry**: The single source of truth for all indicator metadata (`src/strategy/factor_registry.py`), defining cross-branch gating requirements (`is_required_for_buy_now`, `is_wait_veto`, etc.).
+- **Reports**: Explicit markdowns built in `src/strategy/reporting.py` consuming dual-branch recommendation semantics.
 
 ## Building and Running
 
