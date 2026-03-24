@@ -33,8 +33,36 @@ def evaluate_precision(action: str, forward_return: float) -> Optional[bool]:
     ADD requires a strictly positive return.
     REDUCE requires a strictly negative return.
     """
-    if action == "ADD":
+    if action in ["ADD", "BUY_NOW"]:
         return forward_return > 0
     elif action == "REDUCE":
         return forward_return < 0
     return None
+
+def calculate_benchmark_dca_return(prices: pd.Series, start_date: pd.Timestamp, forward_days: int) -> Optional[float]:
+    """
+    Calculates the relative performance of a lump-sum buy at start_date 
+    vs a daily time-uniform DCA over the next forward_days.
+    Returns: (LumpSumOutcome / DCAOutcome) - 1.0 (as percentage)
+    """
+    if start_date not in prices.index:
+        return None
+        
+    end_date = start_date + pd.Timedelta(days=forward_days)
+    relevant_prices = prices[(prices.index >= start_date) & (prices.index <= end_date)]
+    if relevant_prices.empty:
+        return None
+        
+    lump_sum_price = prices[start_date]
+    if lump_sum_price <= 0:
+        return None
+        
+    # DCA Outcome: 1 / Average Price over the period
+    avg_dca_price = relevant_prices.mean()
+    if avg_dca_price <= 0:
+        return None
+        
+    # Relative performance: (1/P_lump) / (1/P_dca) - 1 = P_dca / P_lump - 1
+    # If P_dca > P_lump, lump sum was better (positive relative return)
+    rel_perf = (avg_dca_price / lump_sum_price - 1.0) * 100
+    return rel_perf

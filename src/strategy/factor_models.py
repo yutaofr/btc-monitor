@@ -14,6 +14,18 @@ class Action(Enum):
     HOLD = "HOLD"
     INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
 
+class PositionAction(Enum):
+    ADD = "ADD"
+    REDUCE = "REDUCE"
+    HOLD = "HOLD"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+
+class CashAction(Enum):
+    BUY_NOW = "BUY_NOW"
+    STAGGER_BUY = "STAGGER_BUY"
+    WAIT = "WAIT"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+
 @dataclass(frozen=True)
 class FactorDefinition:
     """Metadata contract for a factor."""
@@ -23,6 +35,8 @@ class FactorDefinition:
     source_class: str
     is_required_for_add: bool
     is_required_for_reduce: bool
+    is_required_for_buy_now: bool
+    is_wait_veto: bool
     is_backtestable: bool
     freshness_ttl_hours: int
     default_weight: float

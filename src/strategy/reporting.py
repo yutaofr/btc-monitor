@@ -159,3 +159,46 @@ def build_advisory_report(rec, current_price: float = 0.0) -> str:
         lines.append(f"\n**Excluded Research Factors:** {', '.join(rec.excluded_research_factors)}")
         
     return "\n".join(lines)
+
+def build_dual_advisory_report(pos_rec, cash_rec, current_price: float = 0.0) -> str:
+    """
+    Builds a combined markdown report for both Position and Cash branches.
+    """
+    lines = []
+    lines.append("# BTC Monitor Dual-Decision Report")
+    if current_price > 0:
+        lines.append(f"**Price:** ${current_price:,.2f}")
+    
+    lines.append("\n## 1. Position Advisory")
+    lines.append(f"**Action:** `{pos_rec.action}`")
+    lines.append(f"**Confidence:** `{pos_rec.confidence}` / 100")
+    lines.append(f"**Regime:** `{pos_rec.strategic_regime}`")
+    lines.append(f"**Summary:** {pos_rec.summary}")
+    
+    if pos_rec.blocked_reasons:
+        lines.append("**Blocked Reasons:** " + ", ".join(pos_rec.blocked_reasons))
+
+    lines.append("\n## 2. Incremental Cash Advisory")
+    lines.append(f"**Action:** `{cash_rec.action}`")
+    lines.append(f"**Confidence:** `{cash_rec.confidence}` / 100")
+    lines.append(f"**Summary:** {cash_rec.summary}")
+    
+    if cash_rec.blocked_reasons:
+        lines.append("**Blocked Reasons:** " + ", ".join(cash_rec.blocked_reasons))
+
+    lines.append("\n## Evidence & Confluence")
+    supporting = sorted(list(set(pos_rec.supporting_factors + cash_rec.supporting_factors)))
+    conflicting = sorted(list(set(pos_rec.conflicting_factors + cash_rec.conflicting_factors)))
+    
+    if supporting:
+        lines.append(f"**Supporting:** {', '.join(supporting)}")
+    if conflicting:
+        lines.append(f"**Conflicting:** {', '.join(conflicting)}")
+        
+    if pos_rec.freshness_warnings or cash_rec.freshness_warnings:
+        all_warnings = sorted(list(set(pos_rec.freshness_warnings + cash_rec.freshness_warnings)))
+        lines.append("\n### ⚠️ Freshness Warnings")
+        for w in all_warnings:
+            lines.append(f"- {w}")
+            
+    return "\n".join(lines)
