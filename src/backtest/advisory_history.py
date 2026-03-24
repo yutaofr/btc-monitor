@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import requests
 import os
 from src.config import Config
 from src.indicators.base import IndicatorResult
@@ -189,6 +188,7 @@ def calculate_rsi(series, period=14):
 
 def _prepare_fng_series(index):
     try:
+        import requests
         resp = requests.get("https://api.alternative.me/fng/?limit=5000", timeout=10)
         df = pd.DataFrame(resp.json()["data"])
         df["timestamp"] = pd.to_datetime(df["timestamp"].astype(int), unit="s")

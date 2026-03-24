@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import os
-import requests
 from src.strategy.advisory_engine import AdvisoryEngine
 from src.strategy.factor_models import FactorObservation
 from src.strategy.factor_registry import get_factor
