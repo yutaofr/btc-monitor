@@ -141,10 +141,12 @@ def _generate_performance_report(df, full_prices, report_path):
         
         f.write("## 1. Action Distribution\n")
         dist = metrics_df["action"].value_counts(normalize=True).to_dict()
-        f.write("| Action | Frequency |\n|--------|-----------|\n")
+        f.write("| Action | Frequency | Count |\n|--------|-----------|-------|\n")
+        counts = metrics_df["action"].value_counts().to_dict()
         for act in ["ADD", "REDUCE", "HOLD", "INSUFFICIENT_DATA"]:
             freq = dist.get(act, 0)
-            f.write(f"| {act} | {freq:.2%} |\n")
+            count = counts.get(act, 0)
+            f.write(f"| {act} | {freq:.2%} | {count} |\n")
         f.write("\n")
         
         f.write("## 2. Multi-Horizon Precision\n")
@@ -159,11 +161,23 @@ def _generate_performance_report(df, full_prices, report_path):
         f.write("\n")
         
         f.write("## 3. Regime Breakdown\n")
-        f.write("| Regime | Count | Avg Confidence |\n|--------|-------|----------------|\n")
+        f.write("| Regime | Count | Avg Confidence | Conf Std |\n|--------|-------|----------------|----------|\n")
         if "strategic_regime" in metrics_df.columns:
             regimes = metrics_df.groupby("strategic_regime")
             for name, group in regimes:
-                f.write(f"| {name} | {len(group)} | {group['confidence'].mean():.1f} |\n")
+                f.write(f"| {name} | {len(group)} | {group['confidence'].mean():.1f} | {group['confidence'].std():.1f} |\n")
+
+        f.write("\n## 4. False Positive Analysis\n")
+        f.write("| Action | Horizon | FP Count | Sample |\n")
+        f.write("|--------|---------|----------|--------|\n")
+        for action in ["ADD", "REDUCE"]:
+            for win in [28, 84, 182]:
+                col = f"precision_{win}"
+                if col in metrics_df.columns:
+                    fp_subset = metrics_df[(metrics_df["action"] == action) & (metrics_df[col] == 0)]
+                    count = len(fp_subset)
+                    sample = fp_subset["timestamp"].min() if not fp_subset.empty else "None"
+                    f.write(f"| {action} | {win}d | {count} | {sample} |\n")
             
     return metrics_df
 

@@ -95,8 +95,8 @@ class AdvisoryEngine:
             confidence = 70
             summary = "Market showing signs of cyclical overheating."
             
-            # Gating: Selective but reachable (Threshold 5.0)
-            if agreement_weight < 5.0: 
+            # Gating: Selective but reachable (Threshold 4.5 for REDUCE)
+            if agreement_weight < 4.5: 
                 action = Action.HOLD
                 summary = "Strategic strength is insufficient for high-confidence REDUCE."
                 blocked_reasons.append(f"Low Agreement ({agreement_weight:.1f})")

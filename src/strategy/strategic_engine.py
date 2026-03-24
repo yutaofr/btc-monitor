@@ -33,21 +33,25 @@ class StrategicEngine:
             except KeyError:
                 continue
 
-        # Calculate block scores
-        block_scores = {b: sum(o.score for o in obs_list) / len(obs_list) for b, obs_list in blocks.items()}
+        # Calculate weighted block scores
+        block_scores = {}
+        for b, obs_list in blocks.items():
+            weighted_sum = sum(o.score * get_factor(o.name).default_weight for o in obs_list)
+            weight_total = sum(get_factor(o.name).default_weight for o in obs_list)
+            block_scores[b] = weighted_sum / weight_total if weight_total > 0 else 0.0
 
         score_val = block_scores.get("valuation", 0.0)
         score_trd = block_scores.get("trend_cycle", 0.0)
         score_mac = block_scores.get("macro_liquidity", 0.0)
 
-        # 1. OVERHEATED (Extreme Valuation or Trend with confirmation)
-        if score_val < -5.0 and score_trd < -5.0:
+        # 1. OVERHEATED (Extreme Valuation AND Trend)
+        if score_val < -3.5 and score_trd < -3.5:
             return StrategicRegime.OVERHEATED
         if score_val < -3.0 and score_trd < -3.0 and score_mac < -3.0:
             return StrategicRegime.OVERHEATED
             
         # 2. BULLISH_ACCUMULATION (Extreme Value or Trend with confirmation)
-        if score_val > 5.0 and score_trd > 5.0:
+        if score_val > 4.0 and score_trd > 4.0:
             return StrategicRegime.BULLISH_ACCUMULATION
         if score_val > 3.0 and score_trd > 3.0 and score_mac > 3.0:
             return StrategicRegime.BULLISH_ACCUMULATION

@@ -32,6 +32,8 @@ def test_missing_blocks_returns_insufficient_data():
     regime = engine.infer_regime(obs)
     assert regime == StrategicRegime.INSUFFICIENT_DATA
 
+def test_overheated_requires_two_blocks():
+    engine = StrategicEngine()
     # Trend is -10 (Overheated), Valuation is -10 (Overheated)
     obs = [
         create_obs("200WMA", -10.0), 
@@ -40,6 +42,17 @@ def test_missing_blocks_returns_insufficient_data():
     ]
     regime = engine.infer_regime(obs)
     assert regime == StrategicRegime.OVERHEATED
+
+def test_bullish_accumulation_overload():
+    engine = StrategicEngine()
+    # Trend is 10 (Bullish), Valuation is 10 (Bullish), Macro is 0 (Neutral)
+    obs = [
+        create_obs("200WMA", 10.0),
+        create_obs("MVRV_Proxy", 10.0),
+        create_obs("Net_Liquidity", 0.0)
+    ]
+    regime = engine.infer_regime(obs)
+    assert regime == StrategicRegime.BULLISH_ACCUMULATION
 
 def test_tactical_factors_ignored():
     engine = StrategicEngine()

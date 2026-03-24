@@ -4,12 +4,11 @@ import requests
 import os
 from src.config import Config
 from src.indicators.base import IndicatorResult
-from fredapi import Fred
-
 def _load_macro_series(index):
     if not Config.FRED_API_KEY:
         return None, None, None
     try:
+        from fredapi import Fred
         fred = Fred(api_key=Config.FRED_API_KEY)
         # WALCL (Fed Assets), DGS10 (10Y Yield), DTWEXBGS (Broad Dollar)
         walcl = fred.get_series("WALCL", observation_start="2010-01-01")
@@ -70,7 +69,7 @@ def _score_technical(weekly, rsi_weekly, idx):
     else:
         results.append(IndicatorResult("EMA21_Weekly", 0.0, False))
 
-    ma200 = weekly["close"].rolling(200).mean().iloc[idx]
+    ma200 = weekly["close"].rolling(200, min_periods=13).mean().iloc[idx]
     score_200 = 0.0
     if not np.isnan(ma200):
         dist = (price - ma200) / ma200
@@ -134,14 +133,14 @@ def _score_valuation(m_cap_df, puell_df, hash_df, weekly, idx):
     """
     results = []
     price = weekly["close"].iloc[idx]
-    ma200 = weekly["close"].rolling(200).mean().iloc[idx]
+    ma200 = weekly["close"].rolling(200, min_periods=13).mean().iloc[idx]
     
     # 1. MVRV Proxy: Distance from 200WMA (Reliable циклическая floor)
     if not np.isnan(ma200):
         # Scale: Price < MA200 -> Bullish. Price > 2.5*MA200 -> Bearish
         ratio = price / ma200
         if ratio < 1.0: mvrv_score = (1.0 - ratio) * 50 # 0.8 -> 10.0
-        else: mvrv_score = (1.0 - ratio) * 6.6 # 2.5 -> -10.0
+        else: mvrv_score = (1.0 - ratio) * 5.0 # 3.0 -> -10.0
         results.append(IndicatorResult("MVRV_Proxy", round(max(-10, min(10, mvrv_score)), 2), True))
     else: results.append(IndicatorResult("MVRV_Proxy", 0.0, False))
 
@@ -159,12 +158,14 @@ def _score_valuation(m_cap_df, puell_df, hash_df, weekly, idx):
 
     # 3. Hash Ribbon (1w vs 8w MA)
     if hash_df is not None:
-        ma1 = hash_df["value"].iloc[idx]
-        ma8 = hash_df["value"].rolling(8).mean().iloc[idx]
-        if not np.isnan(ma8):
-            dist = (ma1 - ma8) / ma8
-            hash_score = min(10.0, max(-10.0, dist * 100))
-            results.append(IndicatorResult("Hash_Ribbon", round(hash_score, 2), True))
+        fast = hash_df["value"].rolling(30).mean().iloc[idx]
+        slow = hash_df["value"].rolling(60).mean().iloc[idx]
+        if not np.isnan(slow):
+            # Capitulation (fast < slow) is BULLISH for accumulation, 
+            # but NEUTRAL for overheating/exits. We return 0.0 to avoid false REDUCE.
+            if fast < slow: hash_score = 0.0 
+            else: hash_score = 5.0 # Recovery/Growth is generally slightly bullish
+            results.append(IndicatorResult("Hash_Ribbon", hash_score, True))
         else: results.append(IndicatorResult("Hash_Ribbon", 0.0, False))
     else: results.append(IndicatorResult("Hash_Ribbon", 0.0, False))
     return results
