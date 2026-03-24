@@ -195,22 +195,23 @@ class PositionAdvisoryEngine:
                 summary = "Required REDUCE evidence is incomplete."
                 blocked_reasons.append("Required REDUCE evidence coverage missing")
 
-            if agreement_weight < 4.5:
+            if action == PositionAction.REDUCE and agreement_weight < 4.5:
                 action = PositionAction.HOLD
                 summary = "Strategic strength is insufficient for high-confidence REDUCE."
                 blocked_reasons.append(f"Low Agreement ({agreement_weight:.1f})")
 
             # Cyclic Breakdown Confirmation (EMA21)
-            ema21_obs = next((o for o in observations if o.name == "EMA21_Weekly"), None)
-            if ema21_obs and ema21_obs.is_valid:
-                rel_dist = ema21_obs.details.get("rel_dist", 1.0)
-                if rel_dist > 0.0:
-                    action = PositionAction.HOLD
-                    summary = "Strategic overheating detected, but price has not definitively broken 21w EMA support."
-                    blocked_reasons.append(f"EMA21 Support Holding ({rel_dist:+.1%})")
+            if action == PositionAction.REDUCE:
+                ema21_obs = next((o for o in observations if o.name == "EMA21_Weekly"), None)
+                if ema21_obs and ema21_obs.is_valid:
+                    rel_dist = ema21_obs.details.get("rel_dist", 1.0)
+                    if rel_dist > 0.0:
+                        action = PositionAction.HOLD
+                        summary = "Strategic overheating detected, but price has not definitively broken 21w EMA support."
+                        blocked_reasons.append(f"EMA21 Support Holding ({rel_dist:+.1%})")
 
             # Tactical Requirement: Must not be strongly bullish
-            if tactical_info["tactical_bias"] == "BULLISH_CONFIRMED":
+            if action == PositionAction.REDUCE and tactical_info["tactical_bias"] == "BULLISH_CONFIRMED":
                 action = PositionAction.HOLD
                 summary = "Tactical momentum is still strongly bullish; holding despite overheating signs."
                 blocked_reasons.append("Tactical Bullish Conflict")
