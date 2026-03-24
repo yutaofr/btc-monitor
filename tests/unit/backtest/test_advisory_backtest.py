@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 import os
-from src.backtest.advisory_backtest import generate_advisory_backtest
+from src.backtest.advisory_backtest import generate_advisory_backtest, _generate_performance_report
 from src.strategy.factor_models import Recommendation, Action
 
 def test_backtest_report_generation(mocker, tmp_path):
@@ -144,3 +144,33 @@ def test_confidence_bucket_matrix_includes_all_actions_and_zero_rows(mocker, tmp
     assert "### ADD" in content
     assert "### REDUCE" in content
     assert "| Low (<60) | 0 |" in content
+
+def test_precision_format_uses_true_rate_not_object_mean_bug(tmp_path):
+    prices_index = pd.date_range("2024-01-01", periods=2000, freq="D")
+    prices = pd.Series(100.0, index=prices_index)
+    rows = []
+    for idx in range(8):
+        ts = pd.Timestamp("2024-01-01") + pd.Timedelta(days=200 * idx)
+        prices.loc[ts] = 100.0
+        prices.loc[ts + pd.Timedelta(days=28)] = 120.0
+        prices.loc[ts + pd.Timedelta(days=84)] = 120.0
+        prices.loc[ts + pd.Timedelta(days=182)] = 120.0
+        rows.append({
+            "timestamp": ts,
+            "action": "ADD",
+            "strategic_regime": "BULLISH_ACCUMULATION",
+            "confidence": 80,
+            "weekly_open": 100.0,
+            "weekly_close": 100.0,
+            "blocked_reasons": "",
+            "missing_factors": "",
+        })
+
+    df = pd.DataFrame(rows)
+
+    report_path = tmp_path / "report.md"
+    _generate_performance_report(df, prices, report_path)
+    content = report_path.read_text()
+
+    assert "| ADD | 100.0% (N=8) | 100.0% (N=8) | 100.0% (N=8) |" in content
+    assert "| ADD | 28d | 0 | None |" in content

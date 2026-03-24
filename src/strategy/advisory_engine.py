@@ -59,6 +59,7 @@ class AdvisoryEngine:
                 block_means.append(sum(scores) / len(scores))
         
         agreement_weight = sum(abs(s) for s in block_means)
+        strategic_factor_count = sum(len(scores) for scores in raw_blocks.values())
 
         if regime == StrategicRegime.BULLISH_ACCUMULATION:
             action = Action.ADD
@@ -72,14 +73,17 @@ class AdvisoryEngine:
                 if avg > 2.0: confidence += 10
                 elif avg < -5.0: confidence -= 30
 
-            # Opportunity Gap / Evidence Overload: If Valuation and Trend are extreme, Macro panic is secondary
+            # Opportunity Gap / Evidence Overload:
+            # Only bypass tactical confirmation when trend/value are extreme and macro is still lagging.
             is_evidence_overload = False
             try:
                 val_obs = [o for o in observations if o.is_valid and get_factor(o.name).block == "valuation"]
                 trd_obs = [o for o in observations if o.is_valid and get_factor(o.name).block == "trend_cycle"]
+                mac_obs = [o for o in observations if o.is_valid and get_factor(o.name).block == "macro_liquidity"]
                 valuation_score = sum(o.score * get_factor(o.name).default_weight for o in val_obs)
                 trend_score = sum(o.score * get_factor(o.name).default_weight for o in trd_obs)
-                if valuation_score > 12.0 and trend_score > 5.0:
+                macro_score = sum(o.score * get_factor(o.name).default_weight for o in mac_obs)
+                if valuation_score > 12.0 and trend_score > 5.0 and macro_score <= 0.0:
                     is_evidence_overload = True
             except: pass
 
@@ -92,10 +96,22 @@ class AdvisoryEngine:
                 blocked_reasons.append("Tactical Bearish Conflict")
 
             # Gating: Selective but reachable (Threshold 5.5 or Overload)
-            if action == Action.ADD and agreement_weight < 5.5 and not is_evidence_overload: 
-                action = Action.HOLD
-                summary = "Strategic strength is insufficient for high-confidence ADD."
-                blocked_reasons.append(f"Low Agreement ({agreement_weight:.1f})")
+            if action == Action.ADD and not is_evidence_overload:
+                has_strong_strategic_proof = (
+                    strategic_factor_count >= 5 and
+                    len(block_means) == 3 and
+                    all(avg > 3.0 for avg in block_means)
+                )
+                if tactical_info["tactical_bias"] == "NEUTRAL" and has_strong_strategic_proof:
+                    pass
+                elif tactical_info["tactical_bias"] != "BULLISH_CONFIRMED":
+                    action = Action.HOLD
+                    summary = "Tactical confirmation required for ADD."
+                    blocked_reasons.append("Tactical Confirmation Missing")
+                elif agreement_weight < 5.5:
+                    action = Action.HOLD
+                    summary = "Strategic strength is insufficient for high-confidence ADD."
+                    blocked_reasons.append(f"Low Agreement ({agreement_weight:.1f})")
 
         elif regime == StrategicRegime.OVERHEATED:
             action = Action.REDUCE

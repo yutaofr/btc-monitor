@@ -150,7 +150,7 @@ def _generate_performance_report(df, full_prices, report_path):
         
         def _fmt_prec(subset, col):
             if col not in subset.columns: return "Inadequate Sample (N=0)"
-            s = subset[col].dropna()
+            s = subset[col].dropna().map(lambda value: 1.0 if bool(value) else 0.0)
             n = len(s)
             if n <= 1: return f"Inadequate Sample (N={n})"
             return f"{s.mean():.1%} (N={n})"
@@ -202,7 +202,9 @@ def _generate_performance_report(df, full_prices, report_path):
             for win in [28, 84, 182]:
                 col = f"precision_{win}"
                 if col in metrics_df.columns:
-                    fp_subset = metrics_df[(metrics_df["action"] == action) & (metrics_df[col] == False)]
+                    action_subset = metrics_df[metrics_df["action"] == action].copy()
+                    action_subset = action_subset[action_subset[col].notna()]
+                    fp_subset = action_subset[action_subset[col].map(lambda value: not bool(value))]
                     count = len(fp_subset)
                     sample = fp_subset["timestamp"].min() if not fp_subset.empty else "None"
                     f.write(f"| {action} | {win}d | {count} | {sample} |\n")

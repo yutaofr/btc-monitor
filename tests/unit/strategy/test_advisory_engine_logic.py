@@ -31,11 +31,13 @@ def test_research_factor_exclusion():
         create_obs("MVRV_Proxy", 10.0),
         create_obs("200WMA", 10.0),
         create_obs("Net_Liquidity", 10.0),
+        create_obs("FearGreed", 10.0),
         create_obs("Options_Wall", -10.0) # Research-only Bearish
     ]
     
     rec = engine.evaluate(obs)
     
+    assert rec.action == Action.ADD.value
     # Decisional factors should be in supporting (since action is ADD)
     assert "MVRV_Proxy" in rec.supporting_factors
     # Research factor should be in excluded list

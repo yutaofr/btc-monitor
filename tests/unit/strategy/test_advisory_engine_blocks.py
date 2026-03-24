@@ -37,13 +37,73 @@ def test_add_gate_succeeds_with_all_blocks():
         FactorObservation(
             name="Net_Liquidity", score=10.0, is_valid=True, details={}, description="",
             timestamp=datetime.now(), freshness_ok=True, confidence_penalty=0, blocked_reason=""
+        ),
+        FactorObservation(
+            name="FearGreed", score=10.0, is_valid=True, details={}, description="",
+            timestamp=datetime.now(), freshness_ok=True, confidence_penalty=0, blocked_reason=""
         )
     ]
     engine = AdvisoryEngine()
     rec = engine.evaluate(obs)
     
-    # With all 3 blocks bullish, it should be ADD
+    # With all 3 blocks bullish and tactical confirmation, it should be ADD
     assert rec.action == "ADD"
     assert "MVRV_Proxy" in rec.supporting_factors
     assert "200WMA" in rec.supporting_factors
     assert "Net_Liquidity" in rec.supporting_factors
+
+def test_add_requires_tactical_confirmation_when_not_overloaded():
+    """
+    Strong strategic evidence alone should not create ADD unless tactical confirmation is also present.
+    """
+    obs = [
+        FactorObservation(
+            name="MVRV_Proxy", score=10.0, is_valid=True, details={}, description="",
+            timestamp=datetime.now(), freshness_ok=True, confidence_penalty=0, blocked_reason=""
+        ),
+        FactorObservation(
+            name="200WMA", score=10.0, is_valid=True, details={}, description="",
+            timestamp=datetime.now(), freshness_ok=True, confidence_penalty=0, blocked_reason=""
+        ),
+        FactorObservation(
+            name="Net_Liquidity", score=10.0, is_valid=True, details={}, description="",
+            timestamp=datetime.now(), freshness_ok=True, confidence_penalty=0, blocked_reason=""
+        ),
+        FactorObservation(
+            name="FearGreed", score=0.0, is_valid=True, details={}, description="",
+            timestamp=datetime.now(), freshness_ok=True, confidence_penalty=0, blocked_reason=""
+        )
+    ]
+    engine = AdvisoryEngine()
+    rec = engine.evaluate(obs)
+
+    assert rec.action == "HOLD"
+    assert "Tactical confirmation required for ADD" in rec.summary
+
+def test_add_requires_macro_confirmation_even_with_extreme_trend_and_value():
+    """
+    Two-block extremes should not produce ADD when macro confirmation is missing.
+    """
+    obs = [
+        FactorObservation(
+            name="MVRV_Proxy", score=10.0, is_valid=True, details={}, description="",
+            timestamp=datetime.now(), freshness_ok=True, confidence_penalty=0, blocked_reason=""
+        ),
+        FactorObservation(
+            name="200WMA", score=10.0, is_valid=True, details={}, description="",
+            timestamp=datetime.now(), freshness_ok=True, confidence_penalty=0, blocked_reason=""
+        ),
+        FactorObservation(
+            name="Net_Liquidity", score=0.0, is_valid=True, details={}, description="",
+            timestamp=datetime.now(), freshness_ok=True, confidence_penalty=0, blocked_reason=""
+        ),
+        FactorObservation(
+            name="FearGreed", score=10.0, is_valid=True, details={}, description="",
+            timestamp=datetime.now(), freshness_ok=True, confidence_penalty=0, blocked_reason=""
+        )
+    ]
+    engine = AdvisoryEngine()
+    rec = engine.evaluate(obs)
+
+    assert rec.action == "HOLD"
+    assert rec.strategic_regime == "NEUTRAL"

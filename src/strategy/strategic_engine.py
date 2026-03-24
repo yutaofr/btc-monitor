@@ -50,9 +50,7 @@ class StrategicEngine:
         if score_val < -3.0 and score_trd < -3.0 and score_mac < -3.0:
             return StrategicRegime.OVERHEATED
             
-        # 2. BULLISH_ACCUMULATION (Extreme Value or Trend with confirmation)
-        if score_val > 4.0 and score_trd > 4.0:
-            return StrategicRegime.BULLISH_ACCUMULATION
+        # 2. BULLISH_ACCUMULATION requires all three strategic blocks to agree.
         if score_val > 3.0 and score_trd > 3.0 and score_mac > 3.0:
             return StrategicRegime.BULLISH_ACCUMULATION
 
