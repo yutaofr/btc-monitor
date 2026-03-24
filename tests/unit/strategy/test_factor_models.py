@@ -10,6 +10,8 @@ def test_factor_definition_initialization():
         source_class="on_chain",
         is_required_for_add=True,
         is_required_for_reduce=False,
+        is_required_for_buy_now=True,
+        is_wait_veto=False,
         is_backtestable=True,
         freshness_ttl_hours=24,
         default_weight=1.5,

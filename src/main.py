@@ -1,8 +1,9 @@
 import argparse
 from datetime import datetime
 from src.strategy.advisory_evaluator import AdvisoryEvaluator
-from src.strategy.advisory_engine import AdvisoryEngine
-from src.strategy.reporting import build_advisory_report
+from src.strategy.position_advisory_engine import PositionAdvisoryEngine
+from src.strategy.incremental_buy_engine import IncrementalBuyEngine
+from src.strategy.reporting import build_dual_advisory_report
 
 def run_evaluation():
     """Trigger a full evaluation cycle and print/notify result."""
@@ -44,17 +45,20 @@ def run_evaluation():
             )
         )
     
-    advisory_engine = AdvisoryEngine()
-    recommendation = advisory_engine.evaluate(observations)
+    pos_engine = PositionAdvisoryEngine()
+    cash_engine = IncrementalBuyEngine()
+    
+    pos_recommendation = pos_engine.evaluate(observations)
+    cash_recommendation = cash_engine.evaluate(observations)
     
     curr_price = fetch_engine.get_current_price() or 0
-    report = build_advisory_report(recommendation, current_price=curr_price)
+    report = build_dual_advisory_report(pos_recommendation, cash_recommendation, current_price=curr_price)
     
     print("-" * 30)
     print(report)
     print("-" * 30)
     
-    print(f"[{datetime.now().isoformat()}] Cycle Complete. Decision: {recommendation.action}")
+    print(f"[{datetime.now().isoformat()}] Cycle Complete. Decisions: Pos={pos_recommendation.action}, Cash={cash_recommendation.action}")
 
 def main():
     parser = argparse.ArgumentParser(description="BTC Monitor DCA & Position Management (Run-Once Tool)")
