@@ -149,15 +149,22 @@ def _generate_performance_report(df, full_prices, report_path):
             f.write(f"| {act} | {freq:.2%} | {count} |\n")
         f.write("\n")
         
+        def _fmt_prec(subset, col):
+            if col not in subset.columns: return "Inadequate Sample (N=0)"
+            s = subset[col].dropna()
+            n = len(s)
+            if n <= 1: return f"Inadequate Sample (N={n})"
+            return f"{s.mean():.1%} (N={n})"
+
         f.write("## 2. Multi-Horizon Precision\n")
         f.write("| Action | 28d Precision | 84d Precision | 182d Precision |\n")
         f.write("|--------|---------------|---------------|----------------|\n")
         for action in ["ADD", "REDUCE"]:
             subset = metrics_df[metrics_df["action"] == action]
-            p28 = subset["precision_28"].mean() if "precision_28" in subset.columns else 0
-            p84 = subset["precision_84"].mean() if "precision_84" in subset.columns else 0
-            p182 = subset["precision_182"].mean() if "precision_182" in subset.columns else 0
-            f.write(f"| {action} | {p28:.1%} | {p84:.1%} | {p182:.1%} |\n")
+            p28 = _fmt_prec(subset, "precision_28")
+            p84 = _fmt_prec(subset, "precision_84")
+            p182 = _fmt_prec(subset, "precision_182")
+            f.write(f"| {action} | {p28} | {p84} | {p182} |\n")
         f.write("\n")
         
         f.write("## 3. Regime Breakdown\n")
@@ -167,6 +174,25 @@ def _generate_performance_report(df, full_prices, report_path):
             for name, group in regimes:
                 f.write(f"| {name} | {len(group)} | {group['confidence'].mean():.1f} | {group['confidence'].std():.1f} |\n")
 
+        f.write("\n## 3a. Confidence Bucket Precision (ADD Only)\n")
+        f.write("| Bucket | Count | 28d Precision | 84d Precision | 182d Precision |\n|--------|-------|---------------|---------------|----------------|\n")
+        
+        def get_bucket(c):
+            if c >= 80: return "High (>80)"
+            if c >= 60: return "Medium (60-79)"
+            return "Low (<60)"
+            
+        metrics_df["conf_bucket"] = metrics_df["confidence"].apply(get_bucket)
+        add_subset = metrics_df[metrics_df["action"] == "ADD"]
+        if not add_subset.empty:
+            buckets = add_subset.groupby("conf_bucket")
+            for name, group in buckets:
+                p28 = _fmt_prec(pd.DataFrame(group), "precision_28")
+                p84 = _fmt_prec(pd.DataFrame(group), "precision_84")
+                p182 = _fmt_prec(pd.DataFrame(group), "precision_182")
+                f.write(f"| {name} | {len(group)} | {p28} | {p84} | {p182} |\n")
+
+
         f.write("\n## 4. False Positive Analysis\n")
         f.write("| Action | Horizon | FP Count | Sample |\n")
         f.write("|--------|---------|----------|--------|\n")
@@ -174,7 +200,7 @@ def _generate_performance_report(df, full_prices, report_path):
             for win in [28, 84, 182]:
                 col = f"precision_{win}"
                 if col in metrics_df.columns:
-                    fp_subset = metrics_df[(metrics_df["action"] == action) & (metrics_df[col] == 0)]
+                    fp_subset = metrics_df[(metrics_df["action"] == action) & (metrics_df[col] == False)]
                     count = len(fp_subset)
                     sample = fp_subset["timestamp"].min() if not fp_subset.empty else "None"
                     f.write(f"| {action} | {win}d | {count} | {sample} |\n")

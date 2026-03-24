@@ -62,9 +62,16 @@ class AdvisoryEngine:
 
         if regime == StrategicRegime.BULLISH_ACCUMULATION:
             action = Action.ADD
-            confidence = 70
             summary = "High-confidence bullish accumulation regime confirmed."
             
+            # Calibration: Base 50, +10 per aligned block, -30 per hard conflict
+            confidence = 50
+            for block, scores in raw_blocks.items():
+                if not scores: continue
+                avg = sum(scores) / len(scores)
+                if avg > 2.0: confidence += 10
+                elif avg < -5.0: confidence -= 30
+
             # Opportunity Gap / Evidence Overload: If Valuation and Trend are extreme, Macro panic is secondary
             is_evidence_overload = False
             try:
@@ -77,23 +84,30 @@ class AdvisoryEngine:
             except: pass
 
             if tactical_info["tactical_bias"] == "BULLISH_CONFIRMED":
-                confidence += 20
+                confidence += 10
             elif tactical_info["tactical_bias"] == "BEARISH_CONFIRMED":
                 action = Action.HOLD 
                 confidence = 50
                 summary = "Tactical setup is bearishly overstretched; holding despite bullish regime."
                 blocked_reasons.append("Tactical Bearish Conflict")
 
-            # Gating: Selective but reachable (Threshold 5.0 or Overload)
-            if action == Action.ADD and agreement_weight < 5.0 and not is_evidence_overload: 
+            # Gating: Selective but reachable (Threshold 5.5 or Overload)
+            if action == Action.ADD and agreement_weight < 5.5 and not is_evidence_overload: 
                 action = Action.HOLD
                 summary = "Strategic strength is insufficient for high-confidence ADD."
                 blocked_reasons.append(f"Low Agreement ({agreement_weight:.1f})")
 
         elif regime == StrategicRegime.OVERHEATED:
             action = Action.REDUCE
-            confidence = 70
             summary = "Market showing signs of cyclical overheating."
+            
+            # Calibration: Base 50, +10 per aligned block, -30 per hard conflict
+            confidence = 50
+            for block, scores in raw_blocks.items():
+                if not scores: continue
+                avg = sum(scores) / len(scores)
+                if avg < -2.0: confidence += 10
+                elif avg > 5.0: confidence -= 30
             
             # Gating: Selective but reachable (Threshold 4.5 for REDUCE)
             if agreement_weight < 4.5: 
@@ -118,9 +132,18 @@ class AdvisoryEngine:
                 summary = "Tactical momentum is still strongly bullish; holding despite overheating signs."
                 blocked_reasons.append("Tactical Bullish Conflict")
             elif tactical_info["tactical_bias"] == "NEUTRAL" and action == Action.REDUCE:
-                confidence = 60 # Lower confidence if not bearish confirmed
+                pass # Base confidence already handled
             elif tactical_info["tactical_bias"] == "BEARISH_CONFIRMED":
-                confidence += 30
+                confidence += 10
+
+        confidence = max(0, min(100, confidence)) # clamp
+        
+        # Check deep value for macro exception
+        is_deep_value = False
+        sma200_obs = next((o for o in observations if o.name == "SMA200_Weekly"), None)
+        if sma200_obs and sma200_obs.is_valid:
+            if sma200_obs.details.get("rel_dist", 0.0) < -0.30:
+                is_deep_value = True
 
         # ABSOLUTE NO-CONFLICT GATE: If any decisional factor strongly contradicts the action
         for o in observations:
@@ -131,13 +154,13 @@ class AdvisoryEngine:
 
                 if action == Action.ADD and o.score < -5.0:
                     if o.name == "EMA21_Weekly": continue # Low EMA21 is expected at bottom
-                    if defn.block == "macro_liquidity": continue # Macro panic shouldn't veto deep value
+                    if defn.block == "macro_liquidity" and is_deep_value: continue # Macro panic shouldn't veto deep value
                     action = Action.HOLD
                     confidence = 50
                     summary = f"Action ADD blocked by significant conflicting evidence: {o.name} ({o.score})"
                     blocked_reasons.append(f"Veto: {o.name}")
                     break
-                if action == Action.REDUCE and o.score > 2.0:
+                if action == Action.REDUCE and o.score > 5.0:
                     # BLOCK NAME CHECK: Ensure it matches factor_registry.py
                     if defn.block in ["trend_cycle", "macro_liquidity"]: continue 
                     if defn.layer == Layer.TACTICAL.value: continue # Don't let noisy tactical sentiment block a cyclic exit
@@ -147,6 +170,7 @@ class AdvisoryEngine:
                     blocked_reasons.append(f"Veto: {o.name}")
                     break
             except: continue
+
 
         # Supporting/Conflicting/Research Lists
         supporting: List[str] = []
