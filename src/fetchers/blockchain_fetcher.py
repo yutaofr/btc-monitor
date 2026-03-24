@@ -39,6 +39,12 @@ class BlockchainFetcher:
     def get_miners_revenue(self, timespan="1year"):
         return self.fetch_chart("miners-revenue", timespan)
 
+    def get_market_cap(self, timespan="1year"):
+        return self.fetch_chart("market-cap", timespan)
+
+    def get_realized_cap(self, timespan="1year"):
+        return self.fetch_chart("realized-cap", timespan)
+
     def get_hash_rate(self, timespan="1year"):
         return self.fetch_chart("hash-rate", timespan)
 

@@ -1,0 +1,2 @@
+total_return,cagr,annual_volatility,sharpe,max_drawdown,max_drawdown_weeks,trades,win_rate,avg_trade_return,exposure_pct,benchmark_return,data_source
+25295.266270723983,0.9065293409412394,0.6184792350215161,1.3258107134623727,-0.544107434524802,105,4,1.0,55.663906565339914,0.5042839657282742,1432874.1767319706,cryptocompare

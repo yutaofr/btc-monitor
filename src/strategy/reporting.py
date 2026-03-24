@@ -113,3 +113,49 @@ def build_report(
         lines.append(f"- {status_emoji} **{result.name}**{label}: {result.score} (_{result.description}_)")
 
     return "\n".join(lines)
+
+def build_advisory_report(rec, current_price: float = 0.0) -> str:
+    """
+    Builds a markdown report from a pure AdvisoryEngine Recommendation output.
+    """
+    lines = []
+    lines.append("# BTC Monitor Advisory Report")
+    lines.append(f"**Action:** `{rec.action}`")
+    lines.append(f"**Confidence:** `{rec.confidence}` / 100")
+    lines.append(f"**Regime:** `{rec.strategic_regime}`")
+    lines.append(f"**Tactical State:** `{rec.tactical_state}`")
+    
+    if current_price > 0:
+        lines.append(f"**Price:** ${current_price:,.2f}")
+        
+    lines.append(f"\n**Summary:** {rec.summary}")
+    
+    if rec.action in ("HOLD", "INSUFFICIENT_DATA") and rec.blocked_reasons:
+        lines.append("\n## Blocked Reasons:")
+        for reason in rec.blocked_reasons:
+            lines.append(f"- {reason}")
+            
+    if rec.missing_required_blocks:
+        lines.append(f"\n**Missing Blocks:** {', '.join(rec.missing_required_blocks)}")
+        
+    if rec.missing_required_factors:
+        lines.append(f"**Missing Required Factors:** {', '.join(rec.missing_required_factors)}")
+        
+    lines.append("\n## Confluence Analysis")
+    if rec.supporting_factors:
+        lines.append(f"**Supporting Factors:** {', '.join(rec.supporting_factors)}")
+    else:
+        lines.append("**Supporting Factors:** none")
+        
+    if rec.conflicting_factors:
+        lines.append(f"**Conflicting Factors:** {', '.join(rec.conflicting_factors)}")
+        
+    if rec.freshness_warnings:
+        lines.append("\n## ⚠️ Freshness Warnings")
+        for warning in rec.freshness_warnings:
+            lines.append(f"- {warning}")
+            
+    if rec.excluded_research_factors:
+        lines.append(f"\n**Excluded Research Factors:** {', '.join(rec.excluded_research_factors)}")
+        
+    return "\n".join(lines)

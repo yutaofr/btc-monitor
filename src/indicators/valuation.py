@@ -1,4 +1,5 @@
 import pandas as pd
+from datetime import datetime, timezone
 from src.fetchers.blockchain_fetcher import BlockchainFetcher
 from src.indicators.base import IndicatorResult
 
@@ -48,7 +49,8 @@ class ValuationIndicator:
             name="Puell_Multiple",
             score=round(score, 2),
             details={"puell": round(puell, 4), "revenue": round(current_rev, 2)},
-            description=f"Puell Multiple is {puell:.2f} ({'low' if puell < 1.0 else 'high'} revenue relative to year avg)"
+            description=f"Puell Multiple is {puell:.2f} ({'low' if puell < 1.0 else 'high'} revenue relative to year avg)",
+            timestamp=datetime.now(timezone.utc)
         )
 
     def get_production_cost_score(self):
@@ -135,7 +137,8 @@ class ValuationIndicator:
             name="MVRV_Proxy",
             score=round(score, 2),
             details={"mvrv_proxy": round(mvrv_proxy, 4), "cost_basis": round(cost_basis_proxy, 2)},
-            description=f"Price is {mvrv_proxy:.2f}x of 2-year cost basis proxy"
+            description=f"Price is {mvrv_proxy:.2f}x of 2-year cost basis proxy",
+            timestamp=datetime.now(timezone.utc)
         )
 
 if __name__ == "__main__":

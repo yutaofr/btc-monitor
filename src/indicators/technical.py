@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from datetime import datetime, timezone
 from src.fetchers.binance_fetcher import BinanceFetcher
 from src.indicators.base import IndicatorResult, calculate_rsi
 
@@ -34,7 +35,8 @@ class TechnicalIndicator:
             name="200WMA",
             score=round(score, 2),
             details={"close": confirmed_close, "200wma": wma_200, "ratio": ratio},
-            description=f"Price is {ratio:.2f}x of 200WMA"
+            description=f"Price is {ratio:.2f}x of 200WMA",
+            timestamp=datetime.now(timezone.utc)
         )
 
     def get_pi_cycle_score(self):
@@ -63,7 +65,8 @@ class TechnicalIndicator:
             name="Pi_Cycle",
             score=score,
             details={"111dma": sma_111, "350dma_x2": sma_350_x2},
-            description="Pi Cycle Top gap is healthy" if score > 0 else "Pi Cycle Top imminent"
+            description="Pi Cycle Top gap is healthy" if score > 0 else "Pi Cycle Top imminent",
+            timestamp=datetime.now(timezone.utc)
         )
 
     def get_rsi_divergence_score(self):
@@ -97,10 +100,44 @@ class TechnicalIndicator:
             name="RSI_Div",
             score=score,
             details={"curr_rsi": curr_rsi, "prev_rsi": prev_rsi},
-            description=desc
+            description=desc,
+            timestamp=datetime.now(timezone.utc)
+        )
+
+    def get_short_term_stretch_score(self):
+        """
+        Evaluate short-term exhaustion (Price vs 26-week / 182-day EMA).
+        Logic from ADD: 4-week price stretch vs 26-week trend anchor.
+        """
+        df_daily = self.fetcher.fetch_ohlcv(timeframe="1d", limit=200)
+        if df_daily is None or len(df_daily) < 182:
+            return IndicatorResult("Short_Term_Stretch", 0, description="Insufficient data", is_valid=False)
+            
+        curr_price = df_daily.iloc[-1]['close']
+        ema_26w = df_daily['close'].ewm(span=182).mean().iloc[-1]
+        
+        ratio = curr_price / ema_26w
+        
+        # If price is > 1.2x (20% stretch) -> Overheated
+        # If price is < 0.8x (20% discount) -> Bullish
+        if ratio >= 1.25:
+            score = -8.0
+        elif ratio <= 0.8:
+            score = 8.0
+        else:
+            score = 0.0
+            
+        return IndicatorResult(
+            name="Short_Term_Stretch",
+            score=score,
+            details={"current": curr_price, "ema_26w": ema_26w, "ratio": ratio},
+            description=f"Price stretch vs 26w EMA is {ratio:.2f}x",
+            timestamp=datetime.now(timezone.utc)
         )
 
 if __name__ == "__main__":
     indicator = TechnicalIndicator()
     print("Testing 200WMA...")
     print(indicator.get_200wma_score())
+    print("Testing Stretch...")
+    print(indicator.get_short_term_stretch_score())

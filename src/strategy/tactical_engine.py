@@ -1,22 +1,38 @@
-from src.strategy.policies import TACTICAL_FACTORS, TACTICAL_WEIGHTS
-
+from typing import List, Dict
+from src.strategy.factor_models import FactorObservation, Layer
 
 class TacticalEngine:
-    def _relevant_results(self, results):
-        for result in results:
-            if result.name in TACTICAL_FACTORS and result.is_valid:
-                yield result
+    """
+    Provides short-horizon confirmation or tactical setup status.
+    Uses sentiment, tactical RSI, and short-term stretch.
+    """
+    def __init__(self):
+        pass
 
-    def calculate_score(self, results):
-        valid_weighted_sum = 0.0
-        total_weight = 0.0
+    def evaluate_tactical(self, observations: List[FactorObservation]) -> Dict:
+        """
+        Returns a summary of tactical evidence.
+        """
+        tactical_obs = [o for o in observations if get_layer(o.name) == Layer.TACTICAL.value and o.is_valid]
+        
+        if not tactical_obs:
+            return {"tactical_bias": "NEUTRAL", "tactical_score": 0.0, "counts": 0}
 
-        for result in self._relevant_results(results):
-            weight = TACTICAL_WEIGHTS.get(result.name, result.weight)
-            valid_weighted_sum += result.score * weight
-            total_weight += weight
+        avg_score = sum(o.score for o in tactical_obs) / len(tactical_obs)
+        
+        bias = "NEUTRAL"
+        if avg_score > 5.0: bias = "BULLISH_CONFIRMED"
+        elif avg_score < -5.0: bias = "BEARISH_CONFIRMED"
 
-        if total_weight == 0:
-            return 0.0
+        return {
+            "tactical_bias": bias,
+            "tactical_score": avg_score,
+            "counts": len(tactical_obs)
+        }
 
-        return round((valid_weighted_sum / total_weight) * 10, 2)
+def get_layer(name: str):
+    from src.strategy.factor_registry import get_factor
+    try:
+        return get_factor(name).layer
+    except KeyError:
+        return Layer.RESEARCH

@@ -1,26 +1,23 @@
 ## GEMINI.md - BTC Monitor Context
 
-## Project Overview
-**BTC Monitor** is a quantitative decision-support system designed for long-term Bitcoin investors. It evaluates market conditions on demand via an external scheduler using a layered model to determine long-term accumulation regime, tactical timing, and monthly budget execution.
+**BTC Monitor** is a quantitative decision-support system designed for long-term Bitcoin investors. It evaluates market conditions on demand via an external scheduler using a **stateless advisory architecture** to determine high-confidence accumulation regimes and output purely directional advice (`ADD`, `REDUCE`, `HOLD`), rather than handling direct wallet execution logic.
 
 ### Core Architecture
 - **Language**: Python 3.12
 - **Data Policy**: Production logic must not depend on paid APIs or paid market data.
 - **Data Fetchers**: 
     - `ccxt` (Binance): Technical & Price data.
-    - `fredapi` (Macro data): Fed liquidity & Treasury yields.
+    - `fredapi` (Macro data): Fed liquidity, US Treasury Yields, DXY.
     - `yfinance` (ETF/BITO data): Research-only ETF and options proxies.
     - `Blockchain.info` & `Mempool.space`: Public on-chain fundamental data (MVRV, Puell Multiple, Hashrate).
-- **Strategy Engine**: Orchestrates evaluation, scoring, and decision making.
-    - **Scoring**: Indicators still emit `IndicatorResult`, but production decisions are layered into strategic, tactical, and execution stages rather than one flat weighted vote.
-    - **Strategic Layer**: `200WMA`, `Cycle_Pos`, `Net_Liquidity`, `Yields`, `MVRV_Proxy`, `Puell_Multiple`.
-    - **Tactical Layer**: `RSI_Div`, `FearGreed`.
-    - **Research-only Factors**: `Production_Cost`, `Options_Wall`, and `ETF_Flow` remain visible in reports but are excluded from production scoring.
-    - **Normalization**: Missing data reduces coverage; core-factor and minimum-coverage rules are enforced before a buy can be promoted.
-- **State Management**: Manages `data/state.json` via `StateTracker`.
-    - **Budget Rollover**: If no buy signal occurs in a month, the budget multiplier increases by `1.0x` (capped at `MAX_BUDGET_MULTIPLIER`, default `3.0x`).
-    - **Execution Tracking**: State also records `monthly_action_count`, timing/regime metadata, and timezone-aware action timestamps.
-    - **Reset**: The multiplier resets after a full `BUY`; partial execution keeps the remaining monthly budget semantics intact.
+- **Advisory Engine**: Orchestrates evaluation, scoring, and output generation via `FactorRegistry`.
+    - **Models**: Outputs explicit `Recommendation` objects with action choices, confidence scores, and precise blocks preventing action.
+    - **Strategic Engine**: Evaluates `liquidity`, `valuation`, and `trend` evidence blocks.
+    - **Tactical Engine**: Confirms setup momentum via `RSI_Div`, `FearGreed`, and `Short_Term_Stretch`.
+    - **Research-only Factors**: Flags like `ETF_Flow` remain visible in reports but strictly isolated from advisory gates or confidence.
+    - **Fail-Closed**: Missing necessary block evidence systematically downgrades the `Recommendation` to `HOLD` via explicit Gate validation (`INSUFFICIENT_DATA` handling).
+- **Factor Registry**: The single source of truth for all indicator metadata (`src/strategy/factor_registry.py`).
+- **Reports**: Explicit markdowns built in `src/strategy/reporting.py` consuming `Recommendation` semantics.
 
 ## Building and Running
 
@@ -58,13 +55,13 @@
   - `is_valid`: Set to `False` if data fetching or calculation fails.
   - `weight`: Defaults to `1.0`, used for weighted scoring.
 
-### 2. State Persistence
-- All persistent data is stored in `data/state.json`.
-- Key state fields: `current_month`, `has_bought_this_month`, `accumulated_budget_multiplier`, `monthly_action_count`, `last_action_date`, `history`.
+### 2. State Mapping & Logic Flow
+- Engine processes strictly independent pieces of evidence via the registry.
+- Legacy execution state files (like `state.json`) are heavily decoupled or replaced. Adhere strictly to the `FactorDefinition` definitions.
 
 ### 3. Testing
-- **Unit Tests**: Focus on individual logic using `pytest-mock` (e.g., `mocker.patch.object(fetcher, 'get_series', ...)`).
-- **Parity Coverage**: Keep live strategy composition and backtest composition aligned with parity tests.
+- **Unit Tests**: Focus on individual logic using `pytest` fixtures and dependency injection. Mocks explicitly intercept `evaluate_history` during backtesting runs.
+- **Parity Coverage**: Keep live strategy composition and backtest composition precisely mirrored. Backtests dump exact metric evaluations (`28_day_return`, `precision`).
 
 ### 4. Configuration
 - Use `src/config.py` as the single source of truth for settings.
