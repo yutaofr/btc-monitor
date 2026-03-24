@@ -1,10 +1,12 @@
-# BTC Monitor Backtest Performance SPT
+# BTC Monitor SPT: Backtest Performance Implementation Plan
 
-> **For Claude Code:** This plan implements the backtest-performance improvements defined in `docs/2026-03-24-btc-monitor-backtest-performance-add.md` and `docs/2026-03-24-btc-monitor-backtest-performance-spr.md`. Development must use strict `test-driven-development`, `subagent-driven-development`, and `verification-before-completion`. No production code without a failing test first. No task is complete without fresh verification evidence.
+> **For Claude Code:** This SPT is the implementation plan for the backtest-performance improvements defined in `docs/2026-03-24-btc-monitor-backtest-performance-add.md` and `docs/2026-03-24-btc-monitor-backtest-performance-spr.md`. Development must use strict `test-driven-development`, `subagent-driven-development`, and `verification-before-completion`. No production code without a failing test first. No task is complete without fresh verification evidence.
 
 **Goal:** Improve the advisory backtest so it produces more reliable `ADD` / `REDUCE` recommendations, calibrated confidence, sample-aware reporting, and honest performance claims.
 
 **Scope:** backtest reproducibility, confidence calibration, false-positive reduction, sample-aware metrics, regime-level analysis, and dependency isolation.
+
+**Document position:** `ADD` defines the architecture, `SPR` defines the requirements, and this `SPT` defines the user stories and task execution plan.
 
 ---
 
@@ -383,4 +385,3 @@ The plan is complete only when:
 - `REDUCE` is labeled conservatively unless sample support is meaningful
 - regime and failure analysis are present in the report
 - all required tests pass under TDD and verification rules
-

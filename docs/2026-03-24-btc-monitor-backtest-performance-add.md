@@ -9,6 +9,8 @@
 - Type: Architecture design and decision document
 - Scope: Backtest performance, confidence calibration, horizon-aware validation, false-positive reduction
 - Parent context: `docs/2026-03-23-btc-monitor-high-confidence-advisory-srd.md`
+- Companion requirements: `docs/2026-03-24-btc-monitor-backtest-performance-spr.md`
+- Companion implementation plan: `docs/plans/2026-03-24-btc-monitor-backtest-performance-spt.md`
 
 ## Executive Decision
 
@@ -306,4 +308,3 @@ The design is acceptable only if:
 - confidence buckets are calibrated to historical outcomes
 - the report includes sample counts and false-positive slices
 - the engine remains stateless and advisory-only
-

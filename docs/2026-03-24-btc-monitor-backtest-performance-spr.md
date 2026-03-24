@@ -8,6 +8,7 @@
 - Date: 2026-03-24
 - Type: System Performance Requirements
 - Parent ADD: `docs/2026-03-24-btc-monitor-backtest-performance-add.md`
+- Companion implementation plan: `docs/plans/2026-03-24-btc-monitor-backtest-performance-spt.md`
 
 ## Purpose
 
@@ -19,6 +20,8 @@ The current system is operational, reproducible, and stateless. What remains is 
 - `REDUCE` sample support is too small
 - confidence is not yet calibrated enough
 - the report does not yet prove high-confidence usefulness
+
+This document sits between the architecture decision (`ADD`) and the implementation plan (`SPT`).
 
 ## Mandatory Development Process
 
@@ -343,4 +346,3 @@ This SPR is satisfied only if the repository can show:
 - materially improved `ADD` precision
 - honest `REDUCE` reporting with adequate support
 - clean test collection in the current environment
-
