@@ -25,15 +25,18 @@ class TADRInternalState:
 
 from src.strategy.factor_utils import quantize_score
 
+from src.strategy.factor_registry import FactorRegistry
+
 class TADREngine:
     """
     The Orchestrator for BTC Monitor V3.0 (TADR).
     Integrates Scorer, Resolver and implements Circuit Breaker logic.
     """
 
-    def __init__(self, floor: float = 0.2, cap: float = 0.8):
+    def __init__(self, floor: float = 0.2, cap: float = 0.8, registry: Optional[FactorRegistry] = None):
         self.scorer = ProbabilisticConfidenceScorer()
         self.resolver = AllocationResolver(floor=floor, cap=cap)
+        self.registry = registry or FactorRegistry()
         self.last_internal_state: Optional[TADRInternalState] = None
 
     def evaluate(self, observations: List[FactorObservation], 
@@ -46,11 +49,14 @@ class TADREngine:
         # 记录纳秒时间戳 [指令 3.3.5]
         timestamp_ns = time.time_ns()
         
-        # 1. 因子权重 (暂用默认)
-        weights = {obs.name: 1.0 for obs in observations}
+        # 1. 因子权重 (从 Registry 获取) [指令 2.3]
+        weights = self.registry.get_weights_map()
+        critical_factors = self.registry.get_critical_factors()
         
-        # 2. 计算置信度及元数据 [指令 3.3.3, 3.3.4]
-        confidence, multipliers, gates = self.scorer.calculate_with_metadata(observations, weights, context)
+        # 2. 计算置信度及元数据 (注入核心因子列表) [指令 2.2]
+        confidence, multipliers, gates = self.scorer.calculate_with_metadata(
+            observations, weights, context, critical_factors=critical_factors
+        )
         
         # 3. 计分聚合
         # 使用统一封装的 quantize_score [指令 4.1]
