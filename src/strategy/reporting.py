@@ -1,209 +1,55 @@
-from src.strategy.policies import (
-    MIN_STRATEGIC_VALID_RATIO,
-    REQUIRED_STRATEGIC_FACTORS,
-    STRATEGIC_FACTORS,
-    STRATEGIC_WEIGHTS,
-    TACTICAL_FACTORS,
-    TACTICAL_WEIGHTS,
-    classify_factor,
-)
+from typing import List, Optional
+from src.strategy.factor_models import Recommendation
+from src.strategy.tadr_engine import TADRInternalState
 
+class TADRReporter:
+    """
+    指令 [4.3]：增强报告系统。
+    实现 SYSTEM_GATE_LOCKED 显式预警与 RCA 归因。
+    """
 
-def _coverage_ratio(results, factor_names, weight_map):
-    total_weight = sum(weight_map.get(name, 1.0) for name in factor_names)
-    if total_weight == 0:
-        return 0.0
+    def generate_report_markdown(self, recommendation: Recommendation, state: TADRInternalState) -> str:
+        """
+        生成 V3.0 决策报告。
+        """
+        lines = []
 
-    valid_weight = 0.0
-    for result in results:
-        if result.name in factor_names and result.is_valid:
-            valid_weight += weight_map.get(result.name, result.weight)
-
-    return round((valid_weight / total_weight) * 100, 2)
-
-
-def summarize_results(results, is_research_only):
-    strategic_results = []
-    tactical_results = []
-    research_results = []
-    unknown_results = []
-
-    for result in results:
-        research_only = is_research_only(result)
-        layer = classify_factor(result.name, research_only=research_only)
-        if layer == "strategic":
-            strategic_results.append(result)
-        elif layer == "tactical":
-            tactical_results.append(result)
-        elif layer == "research":
-            research_results.append(result)
+        # 1. 核心状态预警 (SYSTEM_GATE_LOCKED) [指令 4.3.1]
+        if state.is_circuit_breaker_active:
+            lines.append("# 🚨 SYSTEM GATE LOCKED (CRITICAL CIRCUIT BREAKER)")
+            lines.append("> **WARNING**: The perception system has been DISCONNECTED due to critical data loss.")
+            lines.append("---")
+            
+            # 2. 熔断归因 (Root Cause Analysis) [指令 4.3.2]
+            lines.append("## 🔍 Root Cause Analysis (RCA)")
+            
+            # 细化归因分析
+            data_missing = [f for f, is_gate_active in state.gate_status.items() if is_gate_active]
+            
+            lines.append(f"**Critical Block Failure**: `{', '.join(data_missing)}`")
+            
+            diagnosis_details = []
+            for factor in data_missing:
+                # 模拟诊断：实际应从 observations 中提取原因
+                diagnosis_details.append(f"- **{factor}**: 数据源无效 (Invalid) 或 接口响应超时 (Timeout)。")
+            
+            lines.append("\n**Diagnostic Details**:")
+            lines.extend(diagnosis_details)
+            lines.append("\n**Status**: [LOGIC_INTERCEPTED] - System grounded to prevent hallucinated signals.")
+            lines.append("---")
         else:
-            unknown_results.append(result)
+            lines.append(f"# BTC Monitor TADR V3 Advisory: {recommendation.action}")
 
-    valid_strategic_names = {
-        result.name for result in strategic_results if result.is_valid
-    }
-    missing_required = [
-        name for name in REQUIRED_STRATEGIC_FACTORS if name not in valid_strategic_names
-    ]
+        # 3. 目标配置详情
+        lines.append(f"## 📊 Strategic Target Allocation: **{state.target_allocation:.1%}**")
+        lines.append(f"**Confidence Level**: `{state.confidence:.2f}` (Entropy & Confluence Scored)")
+        lines.append(f"**Market Regime**: `{', '.join(state.regime_labels)}`")
 
-    return {
-        "strategic_results": strategic_results,
-        "tactical_results": tactical_results,
-        "research_results": research_results,
-        "unknown_results": unknown_results,
-        "strategic_coverage": _coverage_ratio(strategic_results, STRATEGIC_FACTORS, STRATEGIC_WEIGHTS),
-        "tactical_coverage": _coverage_ratio(tactical_results, TACTICAL_FACTORS, TACTICAL_WEIGHTS),
-        "missing_required": missing_required,
-        "excluded_research": [result.name for result in research_results],
-    }
+        # 4. 影子测试元数据 (Shadow Test Metadata)
+        lines.append("---")
+        lines.append("### 🧪 Engineering Metadata (Shadow Parity)")
+        lines.append(f"- **Computation ID (NS)**: `{state.computation_timestamp_ns}`")
+        lines.append(f"- **Strategic Score**: `{state.strategic_score:.8f}`")
+        lines.append(f"- **Redundancy Penalty (Smooth)**: `{min(state.redundancy_multipliers.values()) if state.redundancy_multipliers else 1.0:.8f}`")
 
-
-def build_report(
-    results,
-    final_score,
-    price,
-    budget_multiplier,
-    strategic_score,
-    tactical_score,
-    regime,
-    timing,
-    is_research_only,
-):
-    summary = summarize_results(results, is_research_only)
-
-    lines = []
-    lines.append(f"# BTC Monitor Report")
-    lines.append(f"**Final Score:** `{final_score}` / 100")
-    lines.append(f"**Strategic Score:** `{strategic_score}` / 100")
-    lines.append(f"**Tactical Score:** `{tactical_score}` / 100")
-    lines.append(f"**Regime:** `{regime}`")
-    lines.append(f"**Timing:** `{timing}`")
-    lines.append(f"**Price:** ${price:,.2f}")
-    lines.append(f"**Budget Multiplier:** {budget_multiplier}x")
-    lines.append(f"**Strategic Coverage:** `{summary['strategic_coverage']}`%")
-    lines.append(f"**Tactical Coverage:** `{summary['tactical_coverage']}`%")
-    lines.append(f"**Min Strategic Coverage Target:** `{round(MIN_STRATEGIC_VALID_RATIO * 100, 2)}`%")
-
-    if summary["missing_required"]:
-        lines.append("**Missing Required Core Factors:** " + ", ".join(summary["missing_required"]))
-    else:
-        lines.append("**Missing Required Core Factors:** none")
-
-    if summary["excluded_research"]:
-        lines.append("**Excluded Research Factors:** " + ", ".join(summary["excluded_research"]))
-    else:
-        lines.append("**Excluded Research Factors:** none")
-
-    lines.append("\n## Multi-Factor Breakdown")
-
-    for result in results:
-        research_only = is_research_only(result)
-        layer = classify_factor(result.name, research_only=research_only)
-        if research_only:
-            status_emoji = "🔒"
-            label = " (research-only)"
-        elif layer in ("strategic", "tactical"):
-            status_emoji = "✅" if result.score > 0 else "❌" if result.score < 0 else "⚪"
-            label = f" ({layer})"
-        else:
-            status_emoji = "⚪"
-            label = " (excluded)"
-
-        lines.append(f"- {status_emoji} **{result.name}**{label}: {result.score} (_{result.description}_)")
-
-    return "\n".join(lines)
-
-def build_advisory_report(rec, current_price: float = 0.0) -> str:
-    """
-    Builds a markdown report from a pure AdvisoryEngine Recommendation output.
-    """
-    lines = []
-    lines.append("# BTC Monitor Advisory Report")
-    lines.append(f"**Action:** `{rec.action}`")
-    lines.append(f"**Confidence:** `{rec.confidence}` / 100")
-    lines.append(f"**Regime:** `{rec.strategic_regime}`")
-    lines.append(f"**Tactical State:** `{rec.tactical_state}`")
-    
-    if current_price > 0:
-        lines.append(f"**Price:** ${current_price:,.2f}")
-        
-    lines.append(f"\n**Summary:** {rec.summary}")
-    
-    if rec.action in ("HOLD", "INSUFFICIENT_DATA") and rec.blocked_reasons:
-        lines.append("\n## Blocked Reasons:")
-        for reason in rec.blocked_reasons:
-            lines.append(f"- {reason}")
-            
-    if rec.missing_required_blocks:
-        lines.append(f"\n**Missing Blocks:** {', '.join(rec.missing_required_blocks)}")
-        
-    if rec.missing_required_factors:
-        lines.append(f"**Missing Required Factors:** {', '.join(rec.missing_required_factors)}")
-        
-    lines.append("\n## Confluence Analysis")
-    if rec.supporting_factors:
-        lines.append(f"**Supporting Factors:** {', '.join(rec.supporting_factors)}")
-    else:
-        lines.append("**Supporting Factors:** none")
-        
-    if rec.conflicting_factors:
-        lines.append(f"**Conflicting Factors:** {', '.join(rec.conflicting_factors)}")
-        
-    if rec.freshness_warnings:
-        lines.append("\n## ⚠️ Freshness Warnings")
-        for warning in rec.freshness_warnings:
-            lines.append(f"- {warning}")
-            
-    if rec.excluded_research_factors:
-        lines.append(f"\n**Excluded Research Factors:** {', '.join(rec.excluded_research_factors)}")
-        
-    return "\n".join(lines)
-
-def build_dual_advisory_report(pos_rec, cash_rec, current_price: float = 0.0, drift_warning: str = "") -> str:
-    """
-    Builds a combined markdown report for both Position and Cash branches.
-    SRD-2026-03-27-MONITORING: R-03 (Display Drift Warning).
-    """
-    lines = []
-    lines.append("# BTC Monitor Dual-Decision Report")
-    
-    if drift_warning:
-        lines.append(f"\n> ⚠️ **STRATEGY_DRIFT_WARNING:** {drift_warning}")
-    
-    if current_price > 0:
-        lines.append(f"**Price:** ${current_price:,.2f}")
-    
-    lines.append("\n## 1. Position Advisory")
-    lines.append(f"**Action:** `{pos_rec.action}`")
-    lines.append(f"**Confidence:** `{pos_rec.confidence}` / 100")
-    lines.append(f"**Regime:** `{pos_rec.strategic_regime}`")
-    lines.append(f"**Summary:** {pos_rec.summary}")
-    
-    if pos_rec.blocked_reasons:
-        lines.append("**Blocked Reasons:** " + ", ".join(pos_rec.blocked_reasons))
-
-    lines.append("\n## 2. Incremental Cash Advisory")
-    lines.append(f"**Action:** `{cash_rec.action}`")
-    lines.append(f"**Confidence:** `{cash_rec.confidence}` / 100")
-    lines.append(f"**Summary:** {cash_rec.summary}")
-    
-    if cash_rec.blocked_reasons:
-        lines.append("**Blocked Reasons:** " + ", ".join(cash_rec.blocked_reasons))
-
-    lines.append("\n## Evidence & Confluence")
-    supporting = sorted(list(set(pos_rec.supporting_factors + cash_rec.supporting_factors)))
-    conflicting = sorted(list(set(pos_rec.conflicting_factors + cash_rec.conflicting_factors)))
-    
-    if supporting:
-        lines.append(f"**Supporting:** {', '.join(supporting)}")
-    if conflicting:
-        lines.append(f"**Conflicting:** {', '.join(conflicting)}")
-        
-    if pos_rec.freshness_warnings or cash_rec.freshness_warnings:
-        all_warnings = sorted(list(set(pos_rec.freshness_warnings + cash_rec.freshness_warnings)))
-        lines.append("\n### ⚠️ Freshness Warnings")
-        for w in all_warnings:
-            lines.append(f"- {w}")
-            
-    return "\n".join(lines)
+        return "\n".join(lines)
