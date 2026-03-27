@@ -1,6 +1,8 @@
 import pandas as pd
 import os
 
+from src.backtest.advisory_history import SlidingWindowEvaluator
+
 def generate_report(pos_csv, cash_csv, report_path):
     pos_df = pd.read_csv(pos_csv) if os.path.exists(pos_csv) else None
     cash_df = pd.read_csv(cash_csv) if os.path.exists(cash_csv) else None
@@ -13,6 +15,31 @@ def generate_report(pos_csv, cash_csv, report_path):
             f.write("## 1. Position Advisory Performance\n")
             _write_branch_metrics(f, pos_df, ["ADD", "REDUCE"])
             
+            # SRD R-02 & R-03 Implementation
+            f.write("\n### 1.1 Sliding Window Analysis (Strategy Drift Monitoring)\n")
+            evaluator = SlidingWindowEvaluator(pos_df)
+            ltm_metrics = evaluator.get_window_metrics(12)
+            
+            f.write("| Action | LTM Count | LTM Precision (28d) | Full History Precision (28d) | Drift Status |\n")
+            f.write("|--------|-----------|--------------------|-----------------------------|--------------|\n")
+            
+            for act in ["ADD", "REDUCE"]:
+                full_prec = _calc_prec_numeric(pos_df[pos_df["action"] == act], "precision_28")
+                ltm_prec = ltm_metrics.loc[act, "precision_28d"] if act in ltm_metrics.index else 0.0
+                ltm_count = ltm_metrics.loc[act, "count"] if act in ltm_metrics.index else 0
+                
+                is_drift = False
+                if ltm_count >= 2:
+                    is_drift = evaluator.check_for_drift(full_prec * 100, act)
+                
+                drift_str = "⚠️ **DRIFT DETECTED**" if is_drift else "✅ STABLE"
+                f.write(f"| {act} | {ltm_count} | {ltm_prec:.1f}% | {full_prec*100:.1f}% | {drift_str} |\n")
+
+            # SRD R-01 Correlation Data (Average for LTM)
+            if "dxy_corr" in pos_df.columns:
+                ltm_df = pos_df.tail(52)
+                f.write(f"\n**LTM Macro Correlation:** DXY: `{ltm_df['dxy_corr'].mean():.2f}`, Yields: `{ltm_df['yield_corr'].mean():.2f}`\n")
+            
         if cash_df is not None:
             f.write("\n## 2. Incremental Cash Advisory Performance\n")
             _write_branch_metrics(f, cash_df, ["BUY_NOW", "STAGGER_BUY"])
@@ -20,6 +47,13 @@ def generate_report(pos_csv, cash_csv, report_path):
             f.write("\n### 2.1 Benchmark-Aware Timing vs DCA\n")
             _write_cash_timing_metrics(f, cash_df, "BUY_NOW", ">", "BUY_NOW beats DCA")
             _write_cash_timing_metrics(f, cash_df, "STAGGER_BUY", "<", "DCA beats immediate buy")
+
+def _calc_prec_numeric(subset, col):
+    if col not in subset.columns: return 0.0
+    raw = subset[col].dropna().astype(str).str.strip().str.lower()
+    vals = raw.map({"true": 1.0, "false": 0.0, "1.0": 1.0, "0.0": 0.0, "1": 1.0, "0": 0.0})
+    vals = vals.dropna()
+    return vals.mean() if not vals.empty else 0.0
 
 def _write_branch_metrics(f, df, actions):
     f.write("| Action | Count | 28d Precision | 84d Precision | 182d Precision |\n")

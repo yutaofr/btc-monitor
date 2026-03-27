@@ -203,9 +203,9 @@ class SlidingWindowEvaluator:
                 metrics[action] = {"count": 0, "precision_28d": 0.0}
                 continue
                 
-            # Precision calculation (requires 28d_return column)
-            if "28d_return" in action_df.columns:
-                success = (action_df["28d_return"] > 0) if action != "REDUCE" else (action_df["28d_return"] < 0)
+            # Precision calculation (requires 28_day_return column)
+            if "28_day_return" in action_df.columns:
+                success = (action_df["28_day_return"] > 0) if action != "REDUCE" else (action_df["28_day_return"] < 0)
                 precision = success.mean() * 100
             else:
                 precision = 0.0

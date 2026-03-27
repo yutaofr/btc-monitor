@@ -2,11 +2,16 @@ import pandas as pd
 import os
 from src.backtest.base_runner import BaseBacktestRunner
 from src.strategy.position_advisory_engine import PositionAdvisoryEngine
-from src.backtest.metrics import calculate_forward_returns, evaluate_precision
+from src.backtest.metrics import calculate_forward_returns, evaluate_precision, compute_rolling_correlation
 
 class PositionBacktestRunner(BaseBacktestRunner):
     def run(self, output_dir="data/backtest/position"):
         self.load_data()
+        
+        # Calculate rolling correlations for monitoring (SRD R-01)
+        dxy_corr = compute_rolling_correlation(self.weekly_df["close"], self.dxy, window_weeks=52)
+        yield_corr = compute_rolling_correlation(self.weekly_df["close"], self.yields, window_weeks=52)
+        
         engine = PositionAdvisoryEngine()
         records = []
         
@@ -22,7 +27,9 @@ class PositionBacktestRunner(BaseBacktestRunner):
                 "action": rec.action,
                 "regime": rec.strategic_regime,
                 "confidence": rec.confidence,
-                "price": self.weekly_df["close"].iloc[idx]
+                "price": self.weekly_df["close"].iloc[idx],
+                "dxy_corr": dxy_corr.iloc[idx],
+                "yield_corr": yield_corr.iloc[idx]
             }
             res.update(fwd_returns)
             
