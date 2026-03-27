@@ -51,11 +51,33 @@ def run_evaluation():
     pos_recommendation = pos_engine.evaluate(observations)
     cash_recommendation = cash_engine.evaluate(observations)
     
+    # --- TADR V3.0 SHADOW OUTPUT (Phase 1 Integration) ---
+    try:
+        from src.monitoring.correlation_engine import CorrelationEngine
+        from src.strategy.tadr_engine import TADREngine
+        
+        # 1. Compute Correlation Context (Dynamic Weighting Source)
+        corr_engine = CorrelationEngine()
+        corr_context = corr_engine.get_context(lookback_days=90) # Spec 3.2: 90d window
+        
+        # 2. Run TADR Evaluation
+        tadr_v3 = TADREngine()
+        v3_recommendation = tadr_v3.evaluate(observations, context=corr_context)
+        
+        v3_shadow_text = f"\n[V3.0 SHADOW OUTPUT]\n"
+        v3_shadow_text += f"Target Allocation: {v3_recommendation.summary}\n"
+        v3_shadow_text += f"Confidence: {v3_recommendation.confidence}%\n"
+        v3_shadow_text += f"Regime: {v3_recommendation.strategic_regime}\n"
+    except Exception as e:
+        v3_shadow_text = f"\n[V3.0 SHADOW ERROR] Failed to compute shadow output: {str(e)}\n"
+    # ------------------------------------------------------
+
     curr_price = fetch_engine.get_current_price() or 0
     report = build_dual_advisory_report(pos_recommendation, cash_recommendation, current_price=curr_price)
     
     print("-" * 30)
     print(report)
+    print(v3_shadow_text)
     print("-" * 30)
     
     print(f"[{datetime.now().isoformat()}] Cycle Complete. Decisions: Pos={pos_recommendation.action}, Cash={cash_recommendation.action}")
