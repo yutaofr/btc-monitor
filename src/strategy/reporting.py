@@ -160,12 +160,17 @@ def build_advisory_report(rec, current_price: float = 0.0) -> str:
         
     return "\n".join(lines)
 
-def build_dual_advisory_report(pos_rec, cash_rec, current_price: float = 0.0) -> str:
+def build_dual_advisory_report(pos_rec, cash_rec, current_price: float = 0.0, drift_warning: str = "") -> str:
     """
     Builds a combined markdown report for both Position and Cash branches.
+    SRD-2026-03-27-MONITORING: R-03 (Display Drift Warning).
     """
     lines = []
     lines.append("# BTC Monitor Dual-Decision Report")
+    
+    if drift_warning:
+        lines.append(f"\n> ⚠️ **STRATEGY_DRIFT_WARNING:** {drift_warning}")
+    
     if current_price > 0:
         lines.append(f"**Price:** ${current_price:,.2f}")
     

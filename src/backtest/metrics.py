@@ -1,6 +1,18 @@
 import pandas as pd
 from typing import Dict, List, Optional
 
+def compute_rolling_correlation(prices: pd.Series, macro_series: pd.Series, window_weeks: int = 52) -> pd.Series:
+    """
+    Calculate the rolling Pearson correlation between BTC price changes 
+    and a macro indicator (e.g., DXY or Yields).
+    SRD-2026-03-27-MONITORING: R-01 implementation.
+    """
+    # Use percentage changes for correlation to avoid non-stationarity issues
+    price_returns = prices.pct_change()
+    macro_returns = macro_series.pct_change()
+    
+    return price_returns.rolling(window=window_weeks).corr(macro_returns)
+
 def calculate_forward_returns(prices: pd.Series, eval_date: pd.Timestamp, forward_days: List[int]) -> Dict[str, float]:
     """
     Given a series of prices and an evaluation date, calculate the percentage

@@ -179,6 +179,52 @@ def _to_weekly_ohlcv(df):
     logic = {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
     return df.resample("W").apply(logic)
 
+class SlidingWindowEvaluator:
+    """
+    SRD-2026-03-27-MONITORING: R-02 & R-03 implementation.
+    Evaluates strategy performance across different time windows to detect drift.
+    """
+    def __init__(self, results_df: pd.DataFrame):
+        self.df = results_df.copy()
+        if "timestamp" in self.df.columns:
+            self.df["timestamp"] = pd.to_datetime(self.df["timestamp"])
+            self.df.set_index("timestamp", inplace=True)
+        self.df.sort_index(inplace=True)
+
+    def get_window_metrics(self, months: int = 12) -> pd.DataFrame:
+        """Calculate metrics for the last N months."""
+        cutoff = self.df.index.max() - pd.DateOffset(months=months)
+        window_df = self.df[self.df.index >= cutoff]
+        
+        metrics = {}
+        for action in ["ADD", "REDUCE", "BUY_NOW"]:
+            action_df = window_df[window_df["action"] == action]
+            if action_df.empty:
+                metrics[action] = {"count": 0, "precision_28d": 0.0}
+                continue
+                
+            # Precision calculation (requires 28d_return column)
+            if "28d_return" in action_df.columns:
+                success = (action_df["28d_return"] > 0) if action != "REDUCE" else (action_df["28d_return"] < 0)
+                precision = success.mean() * 100
+            else:
+                precision = 0.0
+                
+            metrics[action] = {
+                "count": len(action_df),
+                "precision_28d": precision
+            }
+        return pd.DataFrame(metrics).T
+
+    def check_for_drift(self, full_precision: float, action: str = "ADD", threshold: float = 0.85) -> bool:
+        """Check if LTM precision is below threshold of full history precision."""
+        ltm = self.get_window_metrics(12)
+        if action not in ltm.index or ltm.loc[action, "count"] < 2:
+            return False
+            
+        ltm_precision = ltm.loc[action, "precision_28d"]
+        return ltm_precision < (full_precision * threshold)
+
 def calculate_rsi(series, period=14):
     delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()

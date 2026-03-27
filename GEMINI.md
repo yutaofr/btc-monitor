@@ -18,6 +18,10 @@
     - **Research-only Factors**: Flags like `ETF_Flow` remain visible in reports but strictly isolated from advisory gates or confidence.
     - **Fail-Closed & Hard Gating**: Missing necessary block evidence (e.g., missing Macro or Valuation data) systematically blocks aggressive actions (`ADD`, `BUY_NOW`, `REDUCE`), downgrading them to `HOLD`/`WAIT`/`STAGGER_BUY` via explicit `missing_required_factors` validation.
 - **Factor Registry**: The single source of truth for all indicator metadata (`src/strategy/factor_registry.py`), defining cross-branch gating requirements (`is_required_for_buy_now`, `is_wait_veto`, etc.).
+- **Strategy Monitoring (New)**: 
+    - **Rolling Correlation**: Detects shifts in BTC's correlation with macro factors (DXY, Yields).
+    - **Sliding Window Analysis**: Compares Last 12 Months (LTM) precision vs. full history to detect "strategy drift".
+    - **Drift Warning**: Automatically flags performance degradation in reports if LTM precision drops >15%.
 - **Reports**: Explicit markdowns built in `src/strategy/reporting.py` consuming dual-branch recommendation semantics.
 
 ## Building and Running
