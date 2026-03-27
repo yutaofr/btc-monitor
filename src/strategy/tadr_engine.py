@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
-from datetime import datetime
+from typing import List, Dict, Optional, Any
+from datetime import datetime, timezone
 from src.strategy.factor_models import FactorObservation, Recommendation
 from src.strategy.probabilistic_confidence_scorer import ProbabilisticConfidenceScorer
 from src.strategy.allocation_resolver import AllocationResolver
@@ -16,7 +16,7 @@ class TADRInternalState:
     weighted_scores_map: Dict[str, float]      # 加权后分值
     redundancy_multipliers: Dict[str, float]   # [NEW] Sigmoid 权重修正系数
     correlation_matrix_snapshot: Dict[str, float] # 相关性子阵
-    gate_status: Dict[str, bool]               # [NEW] 硬门控触发掩码 (Fail-Closed)
+    gate_status: Dict[str, Any]                # [NEW] 详细门控元数据 (Fail-Closed)
     strategic_score: float                     # 综合标准化得分
     confidence: float                          # 最终置信度
     target_allocation: float                   # 目标仓位 %
@@ -24,7 +24,6 @@ class TADRInternalState:
     is_circuit_breaker_active: bool
 
 from src.strategy.factor_utils import quantize_score
-
 from src.strategy.factor_registry import FactorRegistry
 
 class TADREngine:
@@ -98,12 +97,12 @@ class TADREngine:
             action=action,
             confidence=int(confidence * 100),
             strategic_regime=", ".join(internal_state.regime_labels),
-            tactical_state="Adaptive",
-            supporting_factors=[o.name for o in observations if o.score > 0 and o.is_valid],
-            conflicting_factors=[o.name for o in observations if o.score < 0 and o.is_valid],
-            missing_required_blocks=[],
-            missing_required_factors=[o.name for o in observations if not o.is_valid],
-            blocked_reasons=["Circuit Breaker Active"] if is_circuit_breaker_active else [],
+            tactical_state="CONFIRMED" if confidence > 0.6 else "UNCONFIRMED",
+            supporting_factors=[name for name, score in raw_scores.items() if score > 3],
+            conflicting_factors=[name for name, score in raw_scores.items() if score < -3],
+            missing_required_blocks=[name for name, status in gates.items() if status["is_active"]],
+            missing_required_factors=[],
+            blocked_reasons=[name for name, status in gates.items() if status["is_active"]],
             freshness_warnings=[],
             excluded_research_factors=[],
             summary=summary

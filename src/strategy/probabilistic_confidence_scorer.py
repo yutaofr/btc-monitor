@@ -1,47 +1,44 @@
-from typing import List, Dict, Optional, Tuple
 import numpy as np
+from typing import List, Dict, Any, Tuple
 from src.strategy.factor_models import FactorObservation
-from src.monitoring.correlation_engine import CorrelationContext
+from src.config import Config
 
 class ProbabilisticConfidenceScorer:
     """
-    TADR Architecture: Confidence Layer
-    Implements smooth redundancy decay, fail-closed logic, and provides 
-    intermediate calculation metadata for shadow testing.
+    TADR Core Component: Confidence Scoring with Smooth Redundancy Scaling.
     """
 
-    def calculate_with_metadata(self, observations: List[FactorObservation], 
-                               weights: Dict[str, float], 
-                               context: Optional[CorrelationContext] = None,
-                               critical_factors: Optional[List[str]] = None) -> Tuple[float, Dict[str, float], Dict[str, bool]]:
+    def calculate_with_metadata(self, 
+                                observations: List[FactorObservation], 
+                                weights: Dict[str, float],
+                                context: Any = None,
+                                critical_factors: List[str] = None) -> Tuple[float, Dict[str, float], Dict[str, Any]]:
         """
-        Calculates a confidence score AND returns multipliers/gates.
-        Returns: (confidence, redundancy_multipliers, gate_status)
+        Returns: (confidence, multipliers, gate_status_metadata)
+        gate_status_metadata now includes timestamps for RCA.
         """
-        if not observations:
-            return 0.0, {}, {}
+        if not observations: return 0.0, {}, {}
 
-        # 1. 核心因子硬拦截 (Hard Gating / Fail-Closed)
-        if critical_factors is None:
-            critical_factors = ["Net_Liquidity", "MVRV_Proxy", "Puell_Multiple"]
-        
+        # 1. 初始化门控状态元数据 [指令 3.1]
         gate_status = {}
         invalid_critical_count = 0
+        critical_factors = critical_factors or ["Net_Liquidity", "MVRV_Proxy", "Puell_Multiple"]
+        
         for name in critical_factors:
             obs = next((o for o in observations if o.name == name), None)
             is_valid = obs.is_valid if obs else False
-            gate_status[name] = not is_valid
+            # 记录详细的门控元数据 [指令 3.3]
+            gate_status[name] = {
+                "is_active": not is_valid,
+                "last_observed": obs.timestamp if obs else None
+            }
             if not is_valid:
                 invalid_critical_count += 1
         
-        # 指令 [2.2]：如果缺失 2 个以上核心因子，强制归零 (Fail-Closed)
-        if invalid_critical_count >= 2:
-            return 0.0, {}, gate_status
-
-        # 2. 信息熵衰减 (Entropy Decay)
+        # 2. 核心置信度：由数据熵驱动 (Entropy Decay)
         eta = self._calculate_entropy_decay(observations, weights)
-
-        # 3. 相关性去冗余惩罚 (Redundancy Penalty)
+        
+        # 3. 影子修正：冗余因子平滑压制 (Smooth Redundancy Decay)
         multipliers = {o.name: 1.0 for o in observations if o.is_valid}
         total_redundancy_penalty = 1.0
 
@@ -49,12 +46,12 @@ class ProbabilisticConfidenceScorer:
             spx_corr = context.correlations.get("SPX", 0.0)
             related_factors = ["SPX_Proxy", "BTC_Trend"]
             active_related = [o for o in observations if o.name in related_factors and o.is_valid]
-            
+
             if len(active_related) > 1:
-                # [SMOOTH FORMULA]
-                theta = 0.8
-                k = 15
-                max_p = 0.4
+                # [SMOOTH FORMULA] 使用配置类参数 [指令 2.2]
+                theta = Config.TADR_REDUNDANCY_THETA
+                k = Config.TADR_REDUNDANCY_K
+                max_p = Config.TADR_REDUNDANCY_MAX_PENALTY
                 z = k * (abs(spx_corr) - theta)
                 # 权重平滑压缩系数
                 m = 1.0 - (max_p / (1 + np.exp(-z)))
@@ -66,7 +63,13 @@ class ProbabilisticConfidenceScorer:
         # 4. 一致性校验 (Confluence Check)
         confluence = self._calculate_confluence_multiplier(observations, weights)
 
-        final_confidence = float(np.clip(eta * confluence * total_redundancy_penalty, 0.0, 1.0))
+        # 5. 熔断强制覆盖 [指令 2.2]
+        # 如果失效的核心因子超过阈值，置信度直接降为 0.0
+        if invalid_critical_count >= 2:
+            final_confidence = 0.0
+        else:
+            final_confidence = float(np.clip(eta * confluence * total_redundancy_penalty, 0.0, 1.0))
+            
         return final_confidence, multipliers, gate_status
 
     def calculate(self, *args, **kwargs) -> float:

@@ -25,16 +25,18 @@ class TADRReporter:
             
             # 1. 表格化 RCA 诊断 [指令 4.3.2]
             lines.append("## 🔍 Root Cause Analysis (RCA)")
-            lines.append("| Factor | Status | Raw Score | Multiplier |")
-            lines.append("| :--- | :--- | :--- | :--- |")
+            lines.append("| Factor | Status | Raw Score | Last Observed | Multiplier |")
+            lines.append("| :--- | :--- | :--- | :--- | :--- |")
             
-            for f in state.gate_status.keys():
-                status = "❌ MISSING" if state.gate_status[f] else "✅ OK"
+            for f, metadata in state.gate_status.items():
+                is_active = metadata.get("is_active", False)
+                status = "❌ MISSING" if is_active else "✅ OK"
                 score = state.raw_scores_map.get(f, "N/A")
+                last_obs = metadata.get("last_observed", "N/A")
                 m = state.redundancy_multipliers.get(f, 1.0)
                 # 高亮显示被压制的因子 [指令 5.1.1]
                 m_str = f"**{m:.4f}**" if m < 0.99 else f"{m:.4f}"
-                lines.append(f"| {f} | {status} | {score} | {m_str} |")
+                lines.append(f"| {f} | {status} | {score} | {last_obs} | {m_str} |")
             
             lines.append("\n**Diagnosis**: System grounded to prevent hallucinated signals.")
             lines.append("---")

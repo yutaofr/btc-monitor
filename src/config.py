@@ -23,7 +23,12 @@ class Config:
     MAX_BUDGET_MULTIPLIER = float(os.getenv("MAX_BUDGET_MULTIPLIER", 3.0))
 
     # Timezone
-    TIMEZONE = "Europe/Paris"
+    TIMEZONE = "UTC" # 指令 [3.3.3]: 强制 UTC
+    
+    # TADR 核心算法参数 [指令 2.2]
+    TADR_REDUNDANCY_THETA = 0.8
+    TADR_REDUNDANCY_K = 15
+    TADR_REDUNDANCY_MAX_PENALTY = 0.4
     
     # Path settings
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
