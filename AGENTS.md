@@ -2,43 +2,54 @@
 
 ## Project Structure & Module Organization
 The core application lives in `src/` and is organized by responsibility:
-- `src/main.py` is the entry point and scheduler.
-- `src/config.py` loads environment variables and thresholds.
-- `src/indicators/` contains market signal calculations (technical, macro, sentiment, options/ETF).
-- `src/fetchers/` wraps external data sources (Binance, FRED).
-- `src/strategy/` scores signals and makes buy/hold decisions.
-- `src/state/` persists run state.
-Tests live in `tests/unit/`. `tests/e2e/` is reserved for integration coverage. Runtime data (state, logs) is stored under `data/`.
+- `src/main.py`: Entry point for live evaluation (V3.0 Primary Path).
+- `src/config.py`: Single source of truth for constants and thresholds.
+- `src/indicators/`: Market signal calculations (technical, macro, valuation, sentiment).
+- `src/fetchers/`: Data sourcing (Binance, FRED, Blockchain).
+- `src/strategy/`: 
+    - `tadr_engine.py`: V3.0 Orchestrator (Scorer -> Resolver -> Decision).
+    - `factor_registry.py`: Metadata & Weight definitions.
+    - `probabilistic_confidence_scorer.py`: Entropy-based confidence scoring.
+    - `allocation_resolver.py`: Target allocation mapping.
+- `src/monitoring/`: Correlation tracking and strategy drift detection.
+Tests live in `tests/unit/`, `tests/parity/` (Shadow Testing), and `tests/acceptance/` (V3 Audit).
 
 ## Build, Test, and Development Commands
 The repo is Docker-first; these are the canonical commands:
+
+**Run Live Evaluation (V3.0):**
 ```bash
-docker run --rm -v $(pwd):/app -w /app python:3.12-slim \
-  bash -c "pip install -r requirements.txt && PYTHONPATH=. python src/main.py --now"
-
-docker run --rm -v $(pwd):/app -w /app python:3.12-slim \
-  bash -c "pip install -r requirements.txt && PYTHONPATH=. pytest tests/unit"
-
-docker-compose up -d app
+docker compose build
+docker compose run --rm app
 ```
-For local development without Docker, use Python 3.12 and `pip install -r requirements.txt`, then run `PYTHONPATH=. python src/main.py --now`.
+
+**Run All Tests (Unit + Parity):**
+```bash
+docker compose run --rm tests
+```
+
+**Run V3.0 Acceptance Audit:**
+```bash
+export PYTHONPATH=$PYTHONPATH:. && python3 tests/acceptance/verify_tadr_v3.py
+```
 
 ## Coding Style & Naming Conventions
-Follow standard Python conventions (PEP 8):
-- 4-space indentation, no tabs.
-- `snake_case` for functions/variables, `CapWords` for classes.
-- Module and package names are lowercase with underscores.
-No formatter or linter is enforced, so keep changes small and consistent with nearby code.
+- Follow **PEP 8**.
+- **Numerical Integrity**: Mandatory use of `src.strategy.factor_utils.quantize_score` for all scoring logic to ensure Bit-identical Parity.
+- **Fail-Closed**: Always implement `is_valid` checks and use the registry's gating metadata.
 
 ## Testing Guidelines
-Tests are written with `pytest` (see `requirements.txt`). Name tests `test_*.py` and keep them in `tests/unit/`, mirroring the module under test. Run all unit tests with `pytest tests/unit`. Add tests for new indicators, fetchers, or strategy changes.
+- **Unit Tests**: Mirror module structure in `tests/unit/`.
+- **Parity Tests**: Any change to scoring logic MUST pass `tests/parity/shadow_parity_100_samples.py`.
+- **Acceptance**: Major strategy changes require a full historical audit using `tests/acceptance/verify_tadr_v3.py`.
 
 ## Commit & Pull Request Guidelines
-Existing history uses short, imperative commit summaries (for example, `add README`, `init project`). Keep the first line concise and descriptive. PRs should include:
-- A summary of what changed and why.
-- Linked issues or context if applicable.
-- Test results (command + outcome).
-Screenshots are not required unless output formatting changes.
+- Follow Conventional Commits (e.g., `feat:`, `fix:`, `test:`, `chore:`).
+- PRs MUST include:
+    - Evidence of `docker compose run --rm tests` passing.
+    - For strategy changes: V3.0 Acceptance Audit report summary.
+    - Parity verification (Bit-identical state check).
 
 ## Configuration & Security
-Copy `.env.example` to `.env` and set API keys (FRED, optional Telegram). Never commit secrets or `.env`. Prefer running via Docker to keep dependencies isolated.
+- Copy `.env.example` to `.env` and set `FRED_API_KEY`.
+- **Security**: Never log or print API keys. Protect `.env` from being staged.

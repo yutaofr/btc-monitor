@@ -1,74 +1,60 @@
-# BTC Monitor: 比特币长线分层定投与仓位管理系统
+# BTC Monitor: 比特币长线分层定投与仓位管理系统 (V3.0 TADR)
 
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/tests-89%20passed-success.svg)](/tests/unit)
+[![Tests](https://img.shields.io/badge/tests-104%20passed-success.svg)](/tests/unit)
 
-**BTC Monitor** 是一个面向比特币长期投资者的量化决策支持工具。系统采用了“无状态高确信度建议引擎 (Stateless Advisory Engine)”架构，不再直接接管预算与执行，而是通过严谨的证据分块、回退限制与置信度打分，来输出最高质量的长期分批建仓与减仓建议：
+**BTC Monitor** 是一个面向比特币长期投资者的量化决策支持工具。V3.0 版本引入了 **TADR (Target Allocation & Decision Resilience)** 架构，通过动态权重调节、概率化置信度打分及比特级一致性校验，输出高确信度的仓位管理建议：
 
-1. 当前战略周期是否支持建仓（或减仓）
-2. 战术级别是否确认了相应的时机
-3. 通过严格的操作门槛（Action Gates）给出最终建议：基于存量仓位的 `ADD/REDUCE/HOLD` 与基于增量现金的 `BUY_NOW/STAGGER_BUY/WAIT`
-
-> **核心约束**
-> 本项目禁止使用任何付费 API、付费数据源、试用后收费数据接口或商业终端数据。生产决策仅依赖免费公开数据。
-
-> **运行方式**
-> 项目已移除内部常驻调度，需要由外部调度系统触发，推荐每周运行一次。
+1. **目标仓位 (Target Allocation %)**：将传统离散指令映射为 20% - 80% 的连续目标仓位建议。
+2. **决策韧性 (Resilience)**：具备 Fail-Closed 熔断机制，在核心数据（宏观/估值）缺失时自动锁定决策。
+3. **动态权重 (Dynamic Weighting)**：根据 BTC 与宏观资产（DXY, SPX）的实时相关性自动调整因子权重。
 
 ---
 
-## 核心架构
+## 核心架构: V3.0 TADR
 
-### 1. 战略层 Strategic
+### 1. 战略评估 (Strategic Layer)
+采用三位一体证据聚合，决定长期配置基调：
+- **估值区块 (Valuation)**: `MVRV_Proxy`, `Puell_Multiple`, `Hash_Ribbon`
+- **趋势区块 (Trend/Cycle)**: `200WMA`, `Cycle_Pos`
+- **宏观区块 (Macro)**: `Net_Liquidity`, `Yields`, `DXY`
 
-战略层决定长期配置方向，只使用慢变量和高解释力因子：
+### 2. 战术确认 (Tactical Layer)
+负责执行时机确认与风险否决：
+- `RSI_Div`, `FearGreed`, `Short_Term_Stretch`, `EMA21_Weekly`
 
-- `MVRV_Proxy`
-- `Puell_Multiple`
-- `200WMA`
-- `Cycle_Pos`
-- `Net_Liquidity`
-- `Yields`
+### 3. 决策引擎 (TADREngine)
+- **Primary Path**: 综合战略与战术证据，输出 `ADD/REDUCE/HOLD` 建议。
+- **Confidence Scorer**: 基于数据完整性与一致性计算 0-100% 置信度。
+- **Allocation Resolver**: 根据归一化得分与近 12 个月（LTM）精确率解析目标仓位。
 
-输出战略状态：
+### 4. 监控与预警 (Monitoring)
+- **漂移监控 (Strategy Drift)**: 自动对比 LTM 与全历史精确率，若下降 >15% 则触发警告。
+- **相关性监测**: 实时跟踪 BTC 与 DXY/10Y Yields 的相关性，驱动动态权重。
 
-- `AGGRESSIVE_ACCUMULATE`
-- `NORMAL_ACCUMULATE`
-- `DEFENSIVE_HOLD`
-- `RISK_REDUCE`
+---
 
-### 2. 战术层 Tactical
+## 运行方式 (V3.0)
 
-战术层只负责执行时机确认，不负责决定长期方向：
+### 1. 实时评估 (Snapshot)
+```bash
+# 使用 Docker 运行实时决策
+docker compose build
+docker compose run --rm app
+```
 
-- `RSI_Div`
-- `FearGreed`
+### 2. 历史审计 (Acceptance Audit)
+```bash
+# 运行 V3.0 历史回测审计工具
+python3 tests/acceptance/verify_tadr_v3.py
+```
 
-输出时机状态：
-
-- `BUY_NOW`
-- `STAGGER_BUY`
-- `WAIT`
-
-### 3. 双分支建议层 (Dual-Branch Advisory Layer)
-
-建议层严格无状态且具备双重决策逻辑，通过独立的评估路径处理不同资金性质的需求：
-
-#### A. 存量资产管理 (Position Branch)
-评估现有 BTC 仓位的调整建议：
-- `ADD`: 明确的增配信号（需战略与战术双确认且证据完整）
-- `REDUCE`: 明确的减配信号
-- `HOLD`: 不满足操作条件，持币观望
-
-#### B. 增量现金部署 (Incremental Cash Branch)
-评估法币/稳定币新资金的入场时机：
-- `BUY_NOW`: 极高确信度时机，建议立即全额部署当前批次
-- `STAGGER_BUY`: 战略看好但战术存在背离，建议分批部署或等待更优 intra-week 价格
-- `WAIT`: 时机不佳，建议维持 DCA 或持现等待
-
-#### C. 保守回退 (Fail-Closed)
-- `INSUFFICIENT_DATA`: 核心区块数据缺失，或关键门禁（Hard Gates）未通过时，系统会自动降级信号，并在报告中显式列出 `missing_required_factors`。
+### 3. 自动化测试
+```bash
+# 运行全量单元测试与影子对齐测试 (104/104)
+docker compose run --rm tests
+```
 
 ---
 

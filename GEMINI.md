@@ -10,19 +10,20 @@
     - `fredapi` (Macro data): Fed liquidity, US Treasury Yields, DXY.
     - `yfinance` (ETF/BITO data): Research-only ETF and options proxies.
     - `Blockchain.info` & `Mempool.space`: Public on-chain fundamental data (MVRV, Puell Multiple, Hashrate).
-- **Advisory Engine**: Dual-branch stateless orchestration via `FactorRegistry`.
-    - **Position Branch** (`PositionAdvisoryEngine`): Outputs `ADD`, `REDUCE`, or `HOLD` for existing portfolio management. Requires comprehensive strategic alignment and tactical confirmation.
-    - **Incremental Cash Branch** (`IncrementalBuyEngine`): Outputs `BUY_NOW`, `STAGGER_BUY`, or `WAIT` for new capital deployment. Evaluated against a time-weighted DCA benchmark.
+- **Advisory Engine**: Integrated orchestration via `FactorRegistry`.
+    - **V3.0 TADR (Primary Path)**: Integrated `TADREngine` providing continuous `Target Allocation %` (20%-80%), probabilistic confidence scoring, and dynamic weighting based on Correlation Context.
+    - **V2.0 Legacy (Support)**: Discrete engines (`PositionAdvisoryEngine`, `IncrementalBuyEngine`) for backward compatibility in reporting.
     - **Strategic Engine**: Evaluates `liquidity`, `valuation`, and `trend` evidence blocks.
     - **Tactical Engine**: Confirms setup momentum via `RSI_Div`, `FearGreed`, and `Short_Term_Stretch`.
     - **Research-only Factors**: Flags like `ETF_Flow` remain visible in reports but strictly isolated from advisory gates or confidence.
-    - **Fail-Closed & Hard Gating**: Missing necessary block evidence (e.g., missing Macro or Valuation data) systematically blocks aggressive actions (`ADD`, `BUY_NOW`, `REDUCE`), downgrading them to `HOLD`/`WAIT`/`STAGGER_BUY` via explicit `missing_required_factors` validation.
-- **Factor Registry**: The single source of truth for all indicator metadata (`src/strategy/factor_registry.py`), defining cross-branch gating requirements (`is_required_for_buy_now`, `is_wait_veto`, etc.).
-- **Strategy Monitoring (New)**: 
+    - **Fail-Closed & Circuit Breaker**: `ProbabilisticConfidenceScorer` with a 2-critical-factor failure threshold forcing confidence to 0.0 and triggering a SYSTEM_GATE_LOCKED state.
+- **Numerical Integrity**: Mandatory use of `quantize_score` (8-digit precision) for all intermediate terms and final sums to ensure **Bit-identical Parity** between live and backtest environments.
+- **Factor Registry**: The single source of truth for all indicator metadata (`src/strategy/factor_registry.py`), defining cross-branch gating and V3 weights.
+- **Strategy Monitoring**: 
     - **Rolling Correlation**: Detects shifts in BTC's correlation with macro factors (DXY, Yields).
     - **Sliding Window Analysis**: Compares Last 12 Months (LTM) precision vs. full history to detect "strategy drift".
-    - **Drift Warning**: Automatically flags performance degradation in reports if LTM precision drops >15%.
-- **Reports**: Explicit markdowns built in `src/strategy/reporting.py` consuming dual-branch recommendation semantics.
+    - **Drift Warning**: Automatically flags performance degradation in reports if LTM precision drops >15% (3*SE threshold).
+- **Reports**: Explicit markdowns built in `src/strategy/reporting.py` consuming V3.0 `TADRInternalState`.
 
 ## Building and Running
 
@@ -34,12 +35,16 @@
 ### Key Commands
 
 #### Development & Testing
-- **Run Immediate Evaluation (Dry-run)**:
+- **Run Immediate Evaluation (Snapshot)**:
   ```bash
   docker compose build
   docker compose run --rm app
   ```
-- **Run All Tests**:
+- **Run V3.0 Acceptance Audit**:
+  ```bash
+  export PYTHONPATH=$PYTHONPATH:. && python3 tests/acceptance/verify_tadr_v3.py
+  ```
+- **Run All Tests (Unit + Parity)**:
   ```bash
   docker compose run --rm tests
   ```
