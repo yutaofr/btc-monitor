@@ -1,13 +1,36 @@
 services:
   app:
     build: .
+    image: btc-monitor:v3
     env_file:
       - .env
+    environment:
+      - TZ=UTC # 指令 [3.3.3]: 强制 UTC
     volumes:
       - ./data:/app/data
+      - ./docs:/app/docs
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50' # 指令 [3.3.2]: CPU 限制
+          memory: 512M # 指令 [3.3.2]: 内存限制
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import os; exit(0 if os.access(\"/app/data\", os.W_OK) and os.getenv(\"FRED_API_KEY\") else 1)'"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   tests:
     build: .
     env_file:
       - .env
+    environment:
+      - TZ=UTC
+    volumes:
+      - .:/app
     command: ["pytest", "tests/unit"]
+    deploy:
+      resources:
+        limits:
+          memory: 1G

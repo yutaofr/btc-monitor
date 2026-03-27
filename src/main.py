@@ -1,5 +1,5 @@
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from src.strategy.advisory_evaluator import AdvisoryEvaluator
 from src.strategy.position_advisory_engine import PositionAdvisoryEngine
 from src.strategy.incremental_buy_engine import IncrementalBuyEngine
@@ -7,7 +7,7 @@ from src.strategy.reporting import build_dual_advisory_report
 
 def run_evaluation():
     """Trigger a full evaluation cycle and print/notify result."""
-    print(f"[{datetime.now().isoformat()}] Starting Market Evaluation Snapshot...")
+    print(f"[{datetime.now(timezone.utc).isoformat()}] Starting Market Evaluation Snapshot...")
     
     # Use AdvisoryEvaluator directly to fetch the raw IndicatorResult list
     # mapped to FactorObservations for the new AdvisoryEngine
@@ -25,11 +25,11 @@ def run_evaluation():
             ttl = definition.freshness_ttl_hours
             
             # IndicatorResult may have None. Fallback explicitly to now()
-            obs_ts = res.timestamp if res.timestamp is not None else datetime.now()
+            obs_ts = res.timestamp if res.timestamp is not None else datetime.now(timezone.utc)
             is_fresh = check_freshness(obs_ts, ttl)
         except KeyError:
             is_fresh = True # Fallback for unknown factors
-            obs_ts = res.timestamp if res.timestamp is not None else datetime.now()
+            obs_ts = res.timestamp if res.timestamp is not None else datetime.now(timezone.utc)
             
         observations.append(
             FactorObservation(
@@ -58,7 +58,7 @@ def run_evaluation():
     print(report)
     print("-" * 30)
     
-    print(f"[{datetime.now().isoformat()}] Cycle Complete. Decisions: Pos={pos_recommendation.action}, Cash={cash_recommendation.action}")
+    print(f"[{datetime.now(timezone.utc).isoformat()}] Cycle Complete. Decisions: Pos={pos_recommendation.action}, Cash={cash_recommendation.action}")
 
 def main():
     parser = argparse.ArgumentParser(description="BTC Monitor DCA & Position Management (Run-Once Tool)")
