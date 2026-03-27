@@ -1,36 +1,24 @@
-"""
-Shared utilities for BTC Monitor V3.0 (TADR).
-Ensures Bit-identical parity between live engine and backtest.
-"""
-from typing import Any
 from datetime import datetime, timezone
+from typing import Optional
 
-def quantize_score(val: Any, precision: int = 8) -> float:
+def check_freshness(obs_timestamp: datetime, ttl_hours: int, current_time: Optional[datetime] = None) -> bool:
     """
-    指令 [4.1]：统一封装 8 位精度取整逻辑。
-    使用 round() 确保浮点数在向量化计算与逐点计算中保持一致。
+    Returns True if the observation timestamp is within the TTL window relative to current_time.
+    If current_time is None, uses datetime.now().
     """
-    try:
-        return round(float(val), precision)
-    except (ValueError, TypeError):
-        return 0.0
+    if current_time is None:
+        current_time = datetime.now(timezone.utc)
+    elif current_time.tzinfo is None:
+        current_time = current_time.replace(tzinfo=timezone.utc)
+        
+    # Standardize observation to UTC as well
+    if obs_timestamp.tzinfo is None:
+        obs_timestamp = obs_timestamp.replace(tzinfo=timezone.utc)
+    else:
+        obs_timestamp = obs_timestamp.astimezone(timezone.utc)
 
-def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:
-    """防止除零风险。"""
-    if denominator == 0:
-        return default
-    return numerator / denominator
-
-def check_freshness(ts: datetime, ttl_hours: int) -> bool:
-    """
-    指令 [2.1]：数据新鲜度校验。
-    统一在 UTC 坐标系下运行。
-    """
-    if ts is None: return False
-    # 确保 ts 是 offset-aware 的 UTC 时间
-    if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=timezone.utc)
+    delta = (current_time - obs_timestamp).total_seconds()
+    max_delta_seconds = ttl_hours * 3600
     
-    now = datetime.now(timezone.utc)
-    delta_hours = (now - ts).total_seconds() / 3600
-    return delta_hours <= ttl_hours
+    # Reject future dates (delta < 0) and stale dates (delta > max)
+    return 0 <= delta <= max_delta_seconds

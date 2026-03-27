@@ -340,37 +340,6 @@ docker compose run --rm tests
 
 ---
 
-## BTC Monitor V3.0 (TADR) 生产部署指南
-
-V3.0 引入了 **Target Allocation & Dynamic Regime (TADR)** 架构，实现了从离散指令到概率化目标仓位的进化。
-
-### 1. 核心配置说明 (`src/strategy/factor_registry.py`)
-在 V3.0 中，`FactorRegistry` 驱动引擎行为。关键配置字段：
-- **`is_critical` (Boolean)**: 
-    - 标记为 `True` 的因子被视为系统“感知”的核心。
-    - **Fail-Closed 逻辑**: 若有 2 个或更多关键因子失效（Invalid 或数据过期 > 72h），系统将进入 `SYSTEM_GATE_LOCKED` 熔断状态，强制将建议设为 `WAIT`。
-- **`default_weight` (0.0 - 10.0)**: 
-    - 基础权重。在运行时，`CorrelationEngine` 会根据资产相关性自动对冗余因子执行平滑缩放。
-
-### 2. 容器化运行 (Production Mode)
-系统推荐在受限环境下运行以保证稳定性：
-```bash
-# 构建并拉起生产环境
-docker compose up --build -d app
-```
-**生产环境特性**:
-- **资源隔离**: 容器限制为 `0.5 CPU` / `512M RAM`，防止回测对宿主机的侵占。
-- **时区强制**: 全链路强制 `UTC` 对齐，消除时间戳漂移。
-- **原子化报告**: 报告生成的 `docs/report.md` 采用临时文件替换逻辑，确保外部读取始终完整。
-
-### 3. 可观测性与归因 (RCA)
-查阅报告中的 **Root Cause Analysis (RCA)** 表格可进行深度诊断。系统会高亮展示：
-- 被压制的因子（Multiplier < 1.0）。
-- 缺失的原始分值。
-- 熔断触发的具体因子名单。
-
----
-
 ## 报告输出
 
 当前报告会展示：

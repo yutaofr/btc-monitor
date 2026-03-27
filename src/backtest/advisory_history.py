@@ -193,14 +193,6 @@ class SlidingWindowEvaluator:
 
     def get_window_metrics(self, months: int = 12) -> pd.DataFrame:
         """Calculate metrics for the last N months."""
-        # 强制转换为日期索引以防万一 [指令 2.1 增强]
-        if not isinstance(self.df.index, pd.DatetimeIndex):
-            try:
-                self.df.index = pd.to_datetime(self.df.index)
-            except Exception:
-                # 如果无法转换，返回空结果而非崩溃
-                return pd.DataFrame()
-                
         cutoff = self.df.index.max() - pd.DateOffset(months=months)
         window_df = self.df[self.df.index >= cutoff]
         

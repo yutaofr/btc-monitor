@@ -153,7 +153,7 @@ class OptionsETFIndicator:
         )
 
     def _select_target_expiry(self, instruments, min_days_ahead=7):
-        now = datetime.now(timezone.utc)
+        now = dt.datetime.utcnow()
         now_ts = int(now.timestamp() * 1000)
         expiries = sorted({inst.get("expiration_timestamp") for inst in instruments if inst.get("expiration_timestamp")})
 
