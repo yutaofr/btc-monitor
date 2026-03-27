@@ -9,6 +9,28 @@ class Layer(str, Enum):
     TACTICAL = "tactical"
     RESEARCH = "research"
 
+class PositionAction(str, Enum):
+    ADD = "ADD"
+    REDUCE = "REDUCE"
+    HOLD = "HOLD"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+
+class CashAction(str, Enum):
+    BUY_NOW = "BUY_NOW"
+    STAGGER_BUY = "STAGGER_BUY"
+    WAIT = "WAIT"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+
+class Action(str, Enum):
+    # 通用枚举，兼容旧代码
+    ADD = "ADD"
+    REDUCE = "REDUCE"
+    HOLD = "HOLD"
+    BUY_NOW = "BUY_NOW"
+    STAGGER_BUY = "STAGGER_BUY"
+    WAIT = "WAIT"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+
 class FactorDefinition(BaseModel):
     """
     Metadata contract for a factor (Pydantic Version).

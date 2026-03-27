@@ -24,7 +24,7 @@ class TADRInternalState:
     is_circuit_breaker_active: bool
 
 from src.strategy.factor_utils import quantize_score
-from src.strategy.factor_registry import FactorRegistry
+from src.strategy.factor_registry import FactorRegistry, _default_registry
 
 class TADREngine:
     """
@@ -35,7 +35,7 @@ class TADREngine:
     def __init__(self, floor: float = 0.2, cap: float = 0.8, registry: Optional[FactorRegistry] = None):
         self.scorer = ProbabilisticConfidenceScorer()
         self.resolver = AllocationResolver(floor=floor, cap=cap)
-        self.registry = registry or FactorRegistry()
+        self.registry = registry or _default_registry
         self.last_internal_state: Optional[TADRInternalState] = None
 
     def evaluate(self, observations: List[FactorObservation], 

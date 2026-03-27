@@ -26,7 +26,7 @@ def test_atomic_write_to_file(tmp_path):
     report_md = reporter.generate_report_markdown(rec, state)
     
     # 执行原子写入
-    reporter.save_report_atomically(str(target_file), report_md)
+    reporter.save_report_atomically(str(target_file), report_md, state)
     
     assert target_file.exists()
     with open(target_file, "r") as f:

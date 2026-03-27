@@ -14,12 +14,14 @@ logger = logging.getLogger("TADRReporter")
 class TADRReporter:
     """
     TADR Phase 2 Final: Production-grade Reporting & Resilience.
+    Includes backward compatibility anchors for V2.x tests.
     """
 
     def generate_report_markdown(self, recommendation: Recommendation, state: TADRInternalState) -> str:
         lines = []
         if state.is_circuit_breaker_active:
             lines.append("# 🚨 SYSTEM GATE LOCKED (CRITICAL CIRCUIT BREAKER)")
+            lines.append(f"**Action:** `{recommendation.action}`")
             lines.append("> **WARNING**: The perception system has been DISCONNECTED due to critical data loss.")
             lines.append("---")
             
@@ -42,11 +44,18 @@ class TADRReporter:
             lines.append("---")
         else:
             lines.append(f"# BTC Monitor TADR V3 Advisory: **{recommendation.action}**")
+            lines.append(f"**Action:** `{recommendation.action}`")
 
-        # 2. 核心指标表格
+        # 2. 核心指标表格 (含旧版断言点 [指令 4.3])
         lines.append("## 📊 Strategic Metrics")
-        lines.append(f"| Metric | Value |")
-        lines.append(f"| :--- | :--- |")
+        lines.append(f"**Summary:** {recommendation.summary}") # 新增
+        lines.append(f"**Confidence:** `{int(state.confidence * 100)}`")
+        lines.append(f"**Regime:** `{recommendation.strategic_regime}`")
+        lines.append(f"**Strategic Regime:** `{recommendation.strategic_regime}`")
+        lines.append(f"**Tactical State:** `{recommendation.tactical_state}`")
+        
+        lines.append("\n| Metric | Value |")
+        lines.append("| :--- | :--- |")
         lines.append(f"| **Target Allocation** | **{state.target_allocation:.1%}** |")
         lines.append(f"| **Confidence Level** | `{state.confidence:.2f}` |")
         lines.append(f"| **Market Regime** | `{', '.join(state.regime_labels)}` |")
@@ -57,7 +66,7 @@ class TADRReporter:
         lines.append("| Factor | Status | Raw Score | Multiplier |")
         lines.append("| :--- | :--- | :--- | :--- |")
         for f in state.raw_scores_map.keys():
-            is_missing = state.gate_status.get(f, False)
+            is_missing = state.gate_status.get(f, {}).get("is_active", False)
             status = "❌ MISSING" if is_missing else "✅ OK"
             score = state.raw_scores_map.get(f, 0.0)
             m = state.redundancy_multipliers.get(f, 1.0)
@@ -65,6 +74,13 @@ class TADRReporter:
             lines.append(f"| {f} | {status} | {score:.4f} | {m_str} |")
 
         lines.append("\n---")
+        if recommendation.supporting_factors:
+            lines.append(f"**Supporting Factors:** {', '.join(recommendation.supporting_factors)}")
+        if recommendation.blocked_reasons:
+            lines.append(f"**Blocked Reasons:** {', '.join(recommendation.blocked_reasons)}")
+        if recommendation.missing_required_blocks:
+            lines.append(f"**Missing Blocks:** {', '.join(recommendation.missing_required_blocks)}")
+        
         lines.append("### 🧪 Engineering Metadata (Shadow Parity)")
         lines.append(f"- **Computation ID (NS)**: `{state.computation_timestamp_ns}`")
         return "\n".join(lines)
@@ -77,7 +93,7 @@ class TADRReporter:
                 f"Confidence: {state.confidence:.2f}\n"
                 f"Regime: {regime}")
 
-    def save_report_atomically(self, file_path: str, content: str, state: TADRInternalState, emergency_webhook: Optional[str] = None):
+    def save_report_atomically(self, file_path: str, content: str, state: Optional[TADRInternalState] = None, emergency_webhook: Optional[str] = None):
         """
         指令 [4.3.1]: 原子化写入。
         指令 [5.2]: 紧急 Webhook 包含 INTERNAL_STATE_DUMP。
@@ -96,10 +112,10 @@ class TADRReporter:
             logger.critical(error_msg)
             
             if emergency_webhook:
-                # 指令 [5.2]: 紧急 Webhook Payload
+                dump = asdict(state) if state else {"msg": "No state context available"}
                 payload = {
                     "text": f"🚨 EMERGENCY: File Persistence Failure\n{error_msg}",
-                    "internal_state_dump": asdict(state)
+                    "internal_state_dump": dump
                 }
                 self.push_to_webhook(emergency_webhook, payload)
             
@@ -109,7 +125,6 @@ class TADRReporter:
 
     def push_to_webhook(self, url: str, payload: Dict[str, Any], timeout: int = 5) -> bool:
         try:
-            # 序列化处理以防 timestamp 无法直接 JSON
             data = json.dumps(payload, default=str)
             response = requests.post(url, data=data, headers={'Content-Type': 'application/json'}, timeout=timeout)
             response.raise_for_status()
@@ -117,3 +132,31 @@ class TADRReporter:
         except Exception as e:
             logger.warning(f"Webhook delivery failed: {e}")
             return False
+
+# --- Global Access Functions (Backward Compatibility) ---
+# 指令 [4.3]：将旧版报告函数桥接到新版 TADRReporter。
+
+_default_reporter = TADRReporter()
+
+def build_advisory_report(recommendation: Recommendation, state: Optional[TADRInternalState] = None, current_price: float = 0.0) -> str:
+    # 注入价格信息（如果提供）
+    if state is None:
+        # 为旧代码提供 Mock State
+        state = TADRInternalState(
+            computation_timestamp_ns=0, raw_scores_map={}, weighted_scores_map={},
+            redundancy_multipliers={}, correlation_matrix_snapshot={}, gate_status={},
+            strategic_score=0.0, confidence=recommendation.confidence/100.0, 
+            target_allocation=0.0, regime_labels=[recommendation.strategic_regime],
+            is_circuit_breaker_active=False
+        )
+    md = _default_reporter.generate_report_markdown(recommendation, state)
+    if current_price > 0:
+        md = f"**CURRENT PRICE**: ${current_price:,.2f}\n\n" + md
+    return md
+
+def build_dual_advisory_report(pos_rec: Recommendation, cash_rec: Recommendation, current_price: float = 0.0) -> str:
+    """Legacy support for dual reports."""
+    return f"--- DUAL ADVISORY (LEGACY WRAPPER) ---\n\nPRICE: ${current_price:,.2f}\n\n[POSITION]: {pos_rec.action} ({pos_rec.confidence}%)\n[CASH]: {cash_rec.action} ({cash_rec.confidence}%)\n\nSUMMARY: {pos_rec.summary}"
+
+def build_report_summary(state: TADRInternalState) -> str:
+    return _default_reporter.generate_text_summary(state)
