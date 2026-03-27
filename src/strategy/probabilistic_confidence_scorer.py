@@ -41,7 +41,7 @@ class ProbabilisticConfidenceScorer:
             # 记录详细的门控元数据 [指令 3.3]
             gate_status[name] = {
                 "is_active": not is_valid,
-                "last_observed": obs.timestamp if obs else None
+                "last_observed_at": obs.timestamp if obs else None
             }
             if not is_valid:
                 invalid_critical_count += 1

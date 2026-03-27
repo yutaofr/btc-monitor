@@ -39,7 +39,7 @@ class TADRReporter:
                     weight = get_factor(f).default_weight
                 except Exception:
                     weight = 1.0
-                last_obs = metadata.get("last_observed", "N/A")
+                last_obs = metadata.get("last_observed_at", "N/A")
                 m = state.redundancy_multipliers.get(f, 1.0)
                 # 高亮显示被压制的因子 [指令 5.1.1]
                 m_str = f"**{m:.4f}**" if m < 0.99 else f"{m:.4f}"
