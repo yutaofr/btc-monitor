@@ -49,21 +49,37 @@ class TADREngine:
         # 记录纳秒时间戳 [指令 3.3.5]
         timestamp_ns = time.time_ns()
         
-        # 1. 因子权重 (从 Registry 获取) [指令 2.3]
-        weights = self.registry.get_weights_map()
+        # 1. 因子基础权重 (从 Registry 获取) [指令 2.3]
+        base_weights = self.registry.get_weights_map()
         critical_factors = self.registry.get_critical_factors()
         
-        # 2. 计算置信度及元数据 (注入核心因子列表) [指令 2.2]
+        # 1.1 动态权重漂移 (Dynamic Weighting) [Spec 3.2 对齐]
+        # W_adj = W_base * (1 + lambda * |rho|)
+        # 默认 lambda=0.5 (可配置)
+        drift_lambda = 0.5
+        weights = {}
+        for name, w_base in base_weights.items():
+            if context and context.is_valid and name in context.correlations:
+                rho = abs(context.correlations[name])
+                weights[name] = quantize_score(w_base * (1 + drift_lambda * rho))
+            else:
+                weights[name] = w_base
+        
+        # 2. 计算置信度及元数据 (注入动态权重及核心因子列表) [指令 2.2]
         confidence, multipliers, gates = self.scorer.calculate_with_metadata(
             observations, weights, context, critical_factors=critical_factors
         )
         
-        # 3. 计分聚合
-        # 使用统一封装的 quantize_score [指令 4.1]
+        # 3. 计分聚合 (Bit-Identical Parity 强化)
+        # 指令 [4.1]: 逐项乘法后立即量化，消除累积浮点误差
         raw_scores = {o.name: quantize_score(o.score) for o in observations}
         valid_observations = [o for o in observations if o.is_valid]
         
-        weighted_sum = sum(raw_scores[o.name] * weights.get(o.name, 1.0) for o in valid_observations)
+        # 对每一项乘法进行原子级量化
+        weighted_terms = {o.name: quantize_score(raw_scores[o.name] * weights.get(o.name, 1.0)) 
+                         for o in valid_observations}
+        
+        weighted_sum = sum(weighted_terms.values())
         norm_score = quantize_score(weighted_sum / max(1, sum(weights.values())))
 
         # 4. 熔断判定 (Explicit Circuit Breaker)
@@ -76,7 +92,7 @@ class TADREngine:
         self.last_internal_state = TADRInternalState(
             computation_timestamp_ns=timestamp_ns,
             raw_scores_map=raw_scores,
-            weighted_scores_map={name: quantize_score(score * weights.get(name, 1.0)) for name, score in raw_scores.items()},
+            weighted_scores_map=weighted_terms, # 已通过原子级量化的加权分
             redundancy_multipliers={name: quantize_score(m) for name, m in multipliers.items()},
             correlation_matrix_snapshot=context.correlations if context else {},
             gate_status=gates,
