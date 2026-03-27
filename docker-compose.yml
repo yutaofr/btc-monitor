@@ -10,4 +10,4 @@ services:
     build: .
     env_file:
       - .env
-    command: ["pytest", "tests/unit"]
+    command: ["sh", "-c", "pytest tests/unit tests/e2e && python3 tests/parity/shadow_parity_100_samples.py"]

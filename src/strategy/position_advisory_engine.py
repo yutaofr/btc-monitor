@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Set, Dict
 from datetime import datetime
 from src.strategy.factor_models import FactorObservation, Recommendation, PositionAction, Layer
 from src.strategy.factor_registry import get_factor, get_all_factors
@@ -29,8 +29,11 @@ class PositionAdvisoryEngine:
         confidence = 50
         summary = "Market is in a neutral or transitional phase."
         blocked_reasons = []
-        missing_required_factors: List[str] = []
-
+        
+        # Collect all required factors from registry for RCA
+        all_factors = get_all_factors()
+        valid_factor_names = {o.name for o in observations if o.is_valid}
+        
         if regime == StrategicRegime.INSUFFICIENT_DATA:
             return Recommendation(
                 action=PositionAction.INSUFFICIENT_DATA.value,
@@ -51,47 +54,31 @@ class PositionAdvisoryEngine:
         block_means, strategic_factor_count = aggregate_strategic_blocks(observations)
         agreement_weight = compute_agreement_weight(block_means)
 
-        has_tactical_confirmation = tactical_info["tactical_bias"] in [
-            "BULLISH_CONFIRMED", "BEARISH_CONFIRMED"
-        ]
-
         if regime == StrategicRegime.BULLISH_ACCUMULATION:
             action = PositionAction.ADD
             summary = "High-confidence bullish accumulation regime confirmed."
 
-            # Hard gate: ADD requires required evidence coverage across strategic blocks.
-            required_add_by_block = {}
-            for factor in get_all_factors():
-                if not factor.is_required_for_add:
-                    continue
-                required_add_by_block.setdefault(factor.block, set()).add(factor.name)
+            # [GATING LOGIC for ADD]
+            required_add_factors = [f for f in all_factors if f.is_required_for_add]
+            missing_required_factors = sorted([f.name for f in required_add_factors if f.name not in valid_factor_names])
+            
+            # FAIL-CLOSED: Block if any CRITICAL factor is missing
+            critical_missing = [f.name for f in required_add_factors if f.is_critical and f.name not in valid_factor_names]
+            
+            # FAIL-CLOSED: Block if any BLOCK is entirely missing
+            covered_strategic_blocks = {get_factor(o.name).block for o in observations if o.is_valid and get_factor(o.name).layer == Layer.STRATEGIC.value}
+            required_blocks = {"valuation", "trend_cycle", "macro_liquidity"}
+            missing_blocks = sorted(list(required_blocks - covered_strategic_blocks))
 
-            covered_add_blocks = set()
-            for o in observations:
-                if not o.is_valid:
-                    continue
-                try:
-                    defn = get_factor(o.name)
-                except KeyError:
-                    continue
-                if defn.is_required_for_add:
-                    covered_add_blocks.add(defn.block)
-
-            missing_blocks = [
-                block for block in ["valuation", "trend_cycle", "macro_liquidity"]
-                if block not in covered_add_blocks
-            ]
-            missing_required_factors = sorted(
-                {
-                    name
-                    for block in missing_blocks
-                    for name in required_add_by_block.get(block, set())
-                }
-            )
-            if missing_blocks:
+            if critical_missing:
                 action = PositionAction.HOLD
                 confidence = 50
-                summary = "Required ADD evidence is incomplete."
+                summary = f"Required ADD evidence is incomplete: missing {', '.join(critical_missing)}."
+                blocked_reasons.append("Required critical factors missing")
+            elif missing_blocks:
+                action = PositionAction.HOLD
+                confidence = 50
+                summary = f"Required ADD evidence is incomplete (missing block: {', '.join(missing_blocks)})."
                 blocked_reasons.append("Required ADD block coverage missing")
 
             # Check evidence overload
@@ -143,57 +130,20 @@ class PositionAdvisoryEngine:
             action = PositionAction.REDUCE
             summary = "Market showing signs of cyclical overheating."
 
-            # Hard gate: REDUCE requires trend-cycle required evidence plus one additional
-            # strategic block (valuation or macro_liquidity) as context confirmation.
-            required_reduce_by_block = {}
-            for factor in get_all_factors():
-                if not factor.is_required_for_reduce:
-                    continue
-                required_reduce_by_block.setdefault(factor.block, set()).add(factor.name)
+            required_reduce_factors = [f for f in all_factors if f.is_required_for_reduce]
+            missing_required_factors = sorted([f.name for f in required_reduce_factors if f.name not in valid_factor_names])
+            
+            # [BLOCK GATING LOGIC for REDUCE]
+            # REDUCE requires trend_cycle + (valuation OR macro_liquidity)
+            covered_strategic_blocks = {get_factor(o.name).block for o in observations if o.is_valid and get_factor(o.name).layer == Layer.STRATEGIC.value}
+            has_trend = "trend_cycle" in covered_strategic_blocks
+            has_other = "valuation" in covered_strategic_blocks or "macro_liquidity" in covered_strategic_blocks
 
-            covered_reduce_blocks = set()
-            for o in observations:
-                if not o.is_valid:
-                    continue
-                try:
-                    defn = get_factor(o.name)
-                except KeyError:
-                    continue
-                if defn.is_required_for_reduce:
-                    covered_reduce_blocks.add(defn.block)
-
-            has_trend = "trend_cycle" in covered_reduce_blocks
-            has_confirming_block = False
-            for o in observations:
-                if not o.is_valid:
-                    continue
-                try:
-                    defn = get_factor(o.name)
-                except KeyError:
-                    continue
-                if defn.layer != Layer.STRATEGIC.value:
-                    continue
-                if defn.block in ["valuation", "macro_liquidity"]:
-                    has_confirming_block = True
-                    break
-            if not has_trend or not has_confirming_block:
-                missing_blocks = []
-                if not has_trend:
-                    missing_blocks.append("trend_cycle")
-                if not has_confirming_block:
-                    missing_blocks.append("confirming_strategic_block")
-
-                missing_required_factors = sorted(
-                    {
-                        name
-                        for block in missing_blocks
-                        for name in required_reduce_by_block.get(block, set())
-                    }
-                )
+            if not has_trend or not has_other:
                 action = PositionAction.HOLD
                 confidence = 50
-                summary = "Required REDUCE evidence is incomplete."
-                blocked_reasons.append("Required REDUCE evidence coverage missing")
+                summary = "Required REDUCE evidence is incomplete (needs Trend + 1 other block coverage)."
+                blocked_reasons.append("Required REDUCE block coverage missing")
 
             if action == PositionAction.REDUCE and agreement_weight < 4.5:
                 action = PositionAction.HOLD
@@ -222,6 +172,9 @@ class PositionAdvisoryEngine:
                 agreement_weight,
                 tactical_info["tactical_bias"] == "BEARISH_CONFIRMED"
             )
+        
+        else: # NEUTRAL
+            missing_required_factors = []
 
         confidence = max(0, min(100, confidence))  # clamp
 
