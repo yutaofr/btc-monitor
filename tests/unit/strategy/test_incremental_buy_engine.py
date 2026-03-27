@@ -1,7 +1,7 @@
 import pytest
-from datetime import datetime
 from src.strategy.incremental_buy_engine import IncrementalBuyEngine
-from src.strategy.factor_models import FactorObservation, CashAction
+from src.strategy.factor_models import CashAction, FactorObservation
+from datetime import datetime
 
 def make_obs(name, score, is_valid=True):
     return FactorObservation(
@@ -15,6 +15,11 @@ def make_obs(name, score, is_valid=True):
         confidence_penalty=0.0,
         blocked_reason=""
     )
+
+def test_cash_engine_exists():
+    """Verify IncrementalBuyEngine can be instantiated."""
+    engine = IncrementalBuyEngine()
+    assert engine is not None
 
 def test_cash_engine_emits_cash_actions():
     """Verify IncrementalBuyEngine emissions are within CashAction vocabulary."""
@@ -67,4 +72,6 @@ def test_buy_now_requires_required_factor_set():
         make_obs("RSI_Div", 7.0),
     ]
     rec = engine.evaluate(obs)
-    assert rec.action == "INSUFFICIENT_DATA"
+    assert rec.action == "STAGGER_BUY"
+    assert "Yields" in rec.missing_required_factors
+    assert "Net_Liquidity" in rec.missing_required_factors

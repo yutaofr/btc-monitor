@@ -1,3 +1,4 @@
+import time
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 from datetime import datetime, timezone
@@ -45,7 +46,6 @@ class TADREngine:
         """
         Main execution flow: Scorer -> Resolver -> Action Mapping
         """
-        import time
         # 记录纳秒时间戳 [指令 3.3.5]
         timestamp_ns = time.time_ns()
         
@@ -80,7 +80,9 @@ class TADREngine:
                          for o in valid_observations}
         
         weighted_sum = sum(weighted_terms.values())
-        norm_score = quantize_score(weighted_sum / max(1, sum(weights.values())))
+        # 对权重总和进行量化以达成绝对比特闭环 [TL Review 指令]
+        weights_total = quantize_score(sum(weights.values()))
+        norm_score = quantize_score(weighted_sum / max(1, weights_total))
 
         # 4. 熔断判定 (Explicit Circuit Breaker)
         is_circuit_breaker_active = (confidence == 0.0)
