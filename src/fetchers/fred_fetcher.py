@@ -1,5 +1,6 @@
 from fredapi import Fred
 from src.config import Config
+from src.utils.retries import retry_with_backoff
 import pandas as pd
 
 class FredFetcher:
@@ -7,16 +8,13 @@ class FredFetcher:
         self.api_key = api_key or Config.FRED_API_KEY
         self.fred = Fred(api_key=self.api_key) if self.api_key else None
 
+    @retry_with_backoff(retries=3, backoff_in_seconds=2.0)
     def get_series(self, series_id, limit=10):
         """Fetch raw series data from FRED."""
         if not self.fred:
             return None
-        try:
-            data = self.fred.get_series(series_id)
-            return data.tail(limit)
-        except Exception as e:
-            print(f"[ERROR] Failed to fetch FRED series {series_id}: {e}")
-            return None
+        data = self.fred.get_series(series_id)
+        return data.tail(limit)
 
     def get_net_liquidity(self):
         """

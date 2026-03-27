@@ -3,26 +3,7 @@ import time
 from typing import Optional, Callable
 from src.fetchers.binance_fetcher import BinanceFetcher
 from src.fetchers.fred_fetcher import FredFetcher
-
-def retry_with_backoff(retries: int = 3, backoff_in_seconds: float = 1.0):
-    """
-    指令 [2.2]：软重试机制（Exponential Backoff）。
-    """
-    def decorator(func: Callable):
-        def wrapper(*args, **kwargs):
-            x = 0
-            while True:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    if x == retries:
-                        print(f"[ERROR] Max retries reached for {func.__name__}: {e}")
-                        return None
-                    sleep = (backoff_in_seconds * 2 ** x)
-                    time.sleep(sleep)
-                    x += 1
-        return wrapper
-    return decorator
+from src.utils.retries import retry_with_backoff
 
 class LiveDataProvider:
     """
