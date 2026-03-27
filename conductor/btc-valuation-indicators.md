@@ -1,43 +1,38 @@
-# Plan: BTC Valuation Resonance Indicators (Free Data Sources)
+# [COMPLETED] Plan: BTC Valuation Resonance Indicators (V3.0 TADR Alignment)
 
 ## Objective
-Implement a new "Valuation Resonance" module to provide a "fair price" assessment of Bitcoin using free, public data sources (Blockchain.info & Mempool.space). This will supplement the existing technical and sentiment indicators with fundamental on-chain data.
+Implement and integrate fundamental on-chain valuation indicators into the V3.0 TADR Framework. These indicators provide the "Fair Price" anchor for Strategic Evidence Blocks.
 
 ## Key Files & Context
-- `src/fetchers/blockchain_fetcher.py`: New fetcher for Blockchain.info and Mempool.space JSON charts.
-- `src/indicators/valuation.py`: New indicator class implementing MVRV, Puell Multiple, and Production Cost.
-- `src/strategy/engine.py`: Integration point for the new indicators.
+- `src/fetchers/blockchain_fetcher.py`: Fetcher for Blockchain.info and Mempool.space JSON charts.
+- `src/indicators/valuation.py`: Indicator class implementing MVRV_Proxy, Puell Multiple, and Hash Ribbon.
+- `src/strategy/tadr_engine.py`: Primary V3.0 Integration point.
+- `src/strategy/factor_registry.py`: Defines the gating and weighting policies for these indicators.
 
-## Implementation Steps
+## Architecture Status (V3.0)
 
-### 1. Research & Fetching (BlockchainFetcher)
-- **Blockchain.info Charts**: Use the direct JSON endpoints (no API key required):
-    - `mvrv`: Market Value to Realized Value ratio.
-    - `miners-revenue`: Daily total revenue in USD.
-    - `realized-price`: Average price at which coins last moved.
-    - `hash-rate`: Total network hashrate (EH/s).
-- **Mempool.space**: Get difficulty and subsidy info.
+### 1. Data Layer (BlockchainFetcher)
+- **Status**: Operational.
+- **Endpoints**: MVRV, Miners-Revenue, Hash-Rate.
+- **Resilience**: Integrated with `LiveDataProvider` for synchronization with Macro assets.
 
 ### 2. Indicator Logic (ValuationIndicator)
-- **MVRV Z-Score / Ratio**:
-    - Score +10 when MVRV < 1.0 (Price is below network cost).
-    - Score -10 when MVRV > 3.7 (Historical bubble peaks).
+- **MVRV_Proxy**:
+    - Normalized score based on historical percentiles.
+    - High确信度因子 (Is_Critical=True).
 - **Puell Multiple**:
-    - `Daily Revenue / 365d Moving Average of Daily Revenue`.
-    - Score +10 when < 0.5 (Miner capitulation).
-    - Score -10 when > 4.0 (Extreme miner profit).
-- **Miner Production Cost (Production Cost Model)**:
-    - Use `Price / Realized Price` or an estimated cost using Hashrate.
-    - Score +10 when Price approaches the floor.
+    - Captures miner revenue cycles.
+    - Essential for Bullish Accumulation regime detection.
 
-### 3. Strategy Engine Update
-- Add `ValuationIndicator` to `StrategyEngine.__init__`.
-- Append new scores in `evaluate()`.
-- The weighted average naturally handles the new indicators.
+### 3. TADR Integration
+- **Strategic Block**: Valuation factors are aggregated into the `valuation` evidence block.
+- **Dynamic Weighting**: Weight adjusts based on correlation context provided by `CorrelationEngine`.
+- **Fail-Closed**: If MVRV or Puell data is stale (>72h), the system triggers `SYSTEM_GATE_LOCKED`.
 
-## Verification & Testing
-- **Unit Tests**:
-    - `tests/unit/test_blockchain_fetcher.py`: Mock JSON responses for all endpoints.
-    - `tests/unit/test_valuation_indicators.py`: Verify scoring logic with edge case data.
-- **Dry-run**:
-    - Run `python src/main.py --now` to see the new report format with Valuation scores.
+## Verification
+- **Unit Tests**: `tests/unit/indicators/test_valuation_indicators.py`.
+- **Shadow Parity**: Verified via `tests/parity/shadow_parity_100_samples.py`.
+- **Black-box**: 100% pass in "Bullish Accumulation" scenarios.
+
+---
+*Note: This track is officially merged into V3.0 Release Branch.*
