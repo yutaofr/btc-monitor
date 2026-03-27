@@ -50,11 +50,12 @@ def test_scenario_aggressive_overheated():
 def test_scenario_fail_closed_critical_missing():
     """场景 3：熔断机制 (核心因子不可用)"""
     engine = TADREngine()
-    # 虽然其他因子看多，但 MVRV_Proxy 这种 is_critical=True 的因子缺失应锁死系统
+    # 核心因子缺失会导致 confidence=0，触发熔断
+    # 指令 [2.2]: 需要至少 2 个核心因子失效触发置信度归零
     obs = [
         create_obs("MVRV_Proxy", 0.0, is_valid=False), 
-        create_obs("200WMA", 10.0),
-        create_obs("Net_Liquidity", 10.0)
+        create_obs("Net_Liquidity", 0.0, is_valid=False),
+        create_obs("200WMA", 10.0)
     ]
     rec = engine.evaluate(obs)
     assert rec.action == Action.INSUFFICIENT_DATA.value
