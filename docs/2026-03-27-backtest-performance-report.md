@@ -36,18 +36,18 @@
 
 ```mermaid
 graph TD
-    A[历史数据采样 (每周)] --> B{数据完整性检查}
-    B -- 核心区块缺失 --> C[标记为 INSUFFICIENT_DATA / HOLD]
-    B -- 核心区块齐全 --> D[战略区块加权评分]
+    A[历史数据采样 每周] --> B{数据完整性检查}
+    B -- "核心区块缺失" --> C[标记为 INSUFFICIENT_DATA / HOLD]
+    B -- "核心区块齐全" --> D[战略区块加权评分]
     
     D --> E{战略周期推断}
-    E -- 均值 > 3.0 --> F[BULLISH_ACCUMULATION]
-    E -- 均值 < -3.0 --> G[OVERHEATED]
-    E -- 中性区间 --> H[NEUTRAL]
+    E -- "均值 > 3.0" --> F[BULLISH_ACCUMULATION]
+    E -- "均值 < -3.0" --> G[OVERHEATED]
+    E -- "中性区间" --> H[NEUTRAL]
     
     F --> I{战术确认 / 时机否决}
-    I -- RSI/情绪支持 --> J[输出 ADD / BUY_NOW]
-    I -- 战术背离/超买 --> K[降级为 HOLD / STAGGER_BUY]
+    I -- "RSI / 情绪支持" --> J[输出 ADD / BUY_NOW]
+    I -- "战术背离 / 超买" --> K[降级为 HOLD / STAGGER_BUY]
     
     J --> L[计算未来 28/84/182 天 Forward Return]
     L --> M[精度与置信度校准分析]
