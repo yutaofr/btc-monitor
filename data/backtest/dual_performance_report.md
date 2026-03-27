@@ -1,5 +1,5 @@
 # BTC Monitor Dual-Decision Backtest Report
-**Generated:** 2026-03-27 10:40:58.656346
+**Generated:** 2026-03-27 13:01:54.123578
 
 ## 1. Position Advisory Performance
 | Action | Count | 28d Precision | 84d Precision | 182d Precision |

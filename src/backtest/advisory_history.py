@@ -184,15 +184,36 @@ class SlidingWindowEvaluator:
     SRD-2026-03-27-MONITORING: R-02 & R-03 implementation.
     Evaluates strategy performance across different time windows to detect drift.
     """
-    def __init__(self, results_df: pd.DataFrame):
-        self.df = results_df.copy()
+    def __init__(self, df: pd.DataFrame):
+        self.df = df.copy()
         if "timestamp" in self.df.columns:
             self.df["timestamp"] = pd.to_datetime(self.df["timestamp"])
             self.df.set_index("timestamp", inplace=True)
+        
+        if not isinstance(self.df.index, pd.DatetimeIndex):
+            # 强制转换索引为 DatetimeIndex，如果是整数则赋予一个基础日期
+            if self.df.index.dtype == "int64":
+                # 模拟日期：从 2024-01-01 开始
+                self.df.index = pd.to_datetime(self.df.index, unit='D', origin='2024-01-01')
+            else:
+                try:
+                    self.df.index = pd.to_datetime(self.df.index)
+                except:
+                    pass
         self.df.sort_index(inplace=True)
+
 
     def get_window_metrics(self, months: int = 12) -> pd.DataFrame:
         """Calculate metrics for the last N months."""
+        if not isinstance(self.df.index, pd.DatetimeIndex):
+            try:
+                self.df.index = pd.to_datetime(self.df.index)
+            except:
+                return pd.DataFrame()
+
+        if self.df.empty or self.df.index.max() is pd.NaT:
+            return pd.DataFrame()
+
         cutoff = self.df.index.max() - pd.DateOffset(months=months)
         window_df = self.df[self.df.index >= cutoff]
         

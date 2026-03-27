@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Set, Dict
 from src.strategy.factor_models import FactorObservation, Recommendation, CashAction, Layer
 from src.strategy.factor_registry import get_factor, get_all_factors
 from src.strategy.strategic_engine import StrategicEngine, StrategicRegime
@@ -29,7 +29,10 @@ class IncrementalBuyEngine:
         confidence = 50
         summary = "Market environment does not favor immediate lump-sum deployment."
         blocked_reasons = []
-        missing_required_factors: List[str] = []
+        
+        # Collect all required factors from registry for RCA
+        all_factors = get_all_factors()
+        valid_factor_names = {o.name for o in observations if o.is_valid}
 
         if regime == StrategicRegime.INSUFFICIENT_DATA:
             return Recommendation(
@@ -55,42 +58,29 @@ class IncrementalBuyEngine:
             action = CashAction.BUY_NOW
             summary = "Macro and valuation setup favor immediate deployment."
 
-            # Hard gate: BUY_NOW requires required evidence coverage across strategic blocks.
-            required_by_block = {}
-            for factor in get_all_factors():
-                if not factor.is_required_for_buy_now:
-                    continue
-                required_by_block.setdefault(factor.block, set()).add(factor.name)
+            # [GATING LOGIC for BUY_NOW]
+            required_buy_factors = [f for f in all_factors if f.is_required_for_buy_now]
+            missing_required_factors = sorted([f.name for f in required_buy_factors if f.name not in valid_factor_names])
+            
+            # FAIL-CLOSED: Block if any CRITICAL factor is missing
+            critical_missing = [f.name for f in required_buy_factors if f.is_critical and f.name not in valid_factor_names]
+            
+            # FAIL-CLOSED: Block if any BLOCK is entirely missing
+            covered_strategic_blocks = {get_factor(o.name).block for o in observations if o.is_valid and get_factor(o.name).layer == Layer.STRATEGIC.value}
+            required_blocks = {"valuation", "trend_cycle", "macro_liquidity"}
+            missing_blocks = sorted(list(required_blocks - covered_strategic_blocks))
 
-            covered_required_blocks = set()
-            for o in observations:
-                if not o.is_valid:
-                    continue
-                try:
-                    defn = get_factor(o.name)
-                except KeyError:
-                    continue
-                if defn.is_required_for_buy_now:
-                    covered_required_blocks.add(defn.block)
-
-            missing_blocks = [
-                block for block in ["valuation", "trend_cycle", "macro_liquidity"]
-                if block not in covered_required_blocks
-            ]
-            missing_required_factors = sorted(
-                {
-                    name
-                    for block in missing_blocks
-                    for name in required_by_block.get(block, set())
-                }
-            )
-            if missing_blocks:
+            if critical_missing:
                 action = CashAction.STAGGER_BUY
-                summary = "Strategic regime is bullish, but required BUY_NOW evidence is incomplete."
+                summary = f"Required BUY_NOW evidence is incomplete: missing {', '.join(critical_missing)}."
+                blocked_reasons.append("Required critical factors missing")
+            elif missing_blocks:
+                action = CashAction.STAGGER_BUY
+                summary = f"Required BUY_NOW evidence is incomplete (missing block: {', '.join(missing_blocks)})."
                 blocked_reasons.append("Required BUY_NOW block coverage missing")
 
             # Tactical Veto for BUY_NOW — downgrade to STAGGER_BUY
-            if tactical_info["tactical_bias"] == "BEARISH_CONFIRMED":
+            if tactical_info["tactical_bias"] == "BEARISH_CONFIRMED" and action == CashAction.BUY_NOW:
                 action = CashAction.STAGGER_BUY
                 summary = (
                     "Strategic setup is bullish, but tactical indicators suggest waiting "
@@ -124,11 +114,13 @@ class IncrementalBuyEngine:
             action = CashAction.WAIT
             summary = "Market is strategically overheated. Wait for a correction."
             confidence = self.calibrator.calibrate(action.value, agreement_weight, False)
+            missing_required_factors = []
 
         else:  # NEUTRAL
             action = CashAction.WAIT
             summary = "No clear timing advantage detected. Wait or use standard DCA."
             confidence = self.calibrator.calibrate(action.value, agreement_weight, False)
+            missing_required_factors = []
 
         # Supporting / Conflicting / Research Lists
         supporting: List[str] = []

@@ -9,8 +9,8 @@ def test_generate_dual_report_includes_stagger_timing_section(tmp_path):
 
     pd.DataFrame(
         [
-            {"action": "ADD", "precision_28": True, "precision_84": True, "precision_182": True},
-            {"action": "REDUCE", "precision_28": False, "precision_84": False, "precision_182": False},
+            {"timestamp": "2024-01-01", "action": "ADD", "precision_28": True, "precision_84": True, "precision_182": True},
+            {"timestamp": "2024-01-08", "action": "REDUCE", "precision_28": False, "precision_84": False, "precision_182": False},
         ]
     ).to_csv(pos_csv, index=False)
 
