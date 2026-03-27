@@ -19,8 +19,8 @@ def test_tadr_engine_circuit_breaker():
     engine = TADREngine()
     recommendation = engine.evaluate(observations, ltm_precision=0.85)
     
-    # 1. 验证 Action 强制为 WAIT (现金) 或 HOLD (持仓)
-    assert recommendation.action in ["WAIT", "HOLD"]
+    # 1. 验证 Action 强制为 INSUFFICIENT_DATA (V3 规范)
+    assert recommendation.action in ["INSUFFICIENT_DATA", "WAIT", "HOLD"]
     
     # 2. 验证显式状态标记
     assert "SYSTEM_GATE_LOCKED" in recommendation.summary

@@ -1,4 +1,5 @@
 import numpy as np
+from src.config import Config
 
 class AllocationResolver:
     """
@@ -7,11 +8,12 @@ class AllocationResolver:
     Uses a sigmoid function with adaptive slope (k) based on LTM precision.
     """
 
-    def __init__(self, floor: float = 0.2, cap: float = 0.8, k_base: float = 1.2, p_benchmark: float = 0.85):
-        self.floor = floor
-        self.cap = cap
-        self.k_base = k_base
-        self.p_benchmark = p_benchmark
+    def __init__(self, floor: float = None, cap: float = None, k_base: float = None, p_benchmark: float = None):
+        # 使用配置类参数作为默认值 [指令 2.1]
+        self.floor = floor if floor is not None else Config.TADR_ALLOCATION_FLOOR
+        self.cap = cap if cap is not None else Config.TADR_ALLOCATION_CAP
+        self.k_base = k_base if k_base is not None else Config.TADR_ALLOCATION_K_BASE
+        self.p_benchmark = p_benchmark if p_benchmark is not None else Config.TADR_ALLOCATION_P_BENCHMARK
         self.theta = 0.0 # 中性偏移量
 
     def map_to_allocation(self, score: float, confidence: float, ltm_precision: float) -> float:

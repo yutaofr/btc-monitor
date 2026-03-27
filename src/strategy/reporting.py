@@ -27,18 +27,23 @@ class TADRReporter:
             
             # 1. 表格化 RCA 诊断 [指令 4.3.2]
             lines.append("## 🔍 Root Cause Analysis (RCA)")
-            lines.append("| Factor | Status | Raw Score | Last Observed | Multiplier |")
-            lines.append("| :--- | :--- | :--- | :--- | :--- |")
+            lines.append("| Factor | Status | Raw Score | Weight | Last Observed | Multiplier |")
+            lines.append("| :--- | :--- | :--- | :--- | :--- | :--- |")
             
+            from src.strategy.factor_registry import get_factor
             for f, metadata in state.gate_status.items():
                 is_active = metadata.get("is_active", False)
                 status = "❌ MISSING" if is_active else "✅ OK"
                 score = state.raw_scores_map.get(f, "N/A")
+                try:
+                    weight = get_factor(f).default_weight
+                except Exception:
+                    weight = 1.0
                 last_obs = metadata.get("last_observed", "N/A")
                 m = state.redundancy_multipliers.get(f, 1.0)
                 # 高亮显示被压制的因子 [指令 5.1.1]
                 m_str = f"**{m:.4f}**" if m < 0.99 else f"{m:.4f}"
-                lines.append(f"| {f} | {status} | {score} | {last_obs} | {m_str} |")
+                lines.append(f"| {f} | {status} | {score} | {weight} | {last_obs} | {m_str} |")
             
             lines.append("\n**Diagnosis**: System grounded to prevent hallucinated signals.")
             lines.append("---")
@@ -50,16 +55,16 @@ class TADRReporter:
         lines.append("## 📊 Strategic Metrics")
         lines.append(f"**Summary:** {recommendation.summary}") # 新增
         lines.append(f"**Confidence:** `{int(state.confidence * 100)}`")
+        lines.append(f"**Target Allocation:** **{state.target_allocation:.1%}**") # 显式展示目标仓位
         lines.append(f"**Regime:** `{recommendation.strategic_regime}`")
         lines.append(f"**Strategic Regime:** `{recommendation.strategic_regime}`")
         lines.append(f"**Tactical State:** `{recommendation.tactical_state}`")
         
         lines.append("\n| Metric | Value |")
         lines.append("| :--- | :--- |")
-        lines.append(f"| **Target Allocation** | **{state.target_allocation:.1%}** |")
+        lines.append(f"| **Computation Score** | `{state.strategic_score:.8f}` |")
         lines.append(f"| **Confidence Level** | `{state.confidence:.2f}` |")
         lines.append(f"| **Market Regime** | `{', '.join(state.regime_labels)}` |")
-        lines.append(f"| **Strategic Score** | `{state.strategic_score:.8f}` |")
         
         # 3. 因子详情表格 (无论是否熔断都展示)
         lines.append("\n## 🔍 Factor Evidence Details")

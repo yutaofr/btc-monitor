@@ -30,6 +30,12 @@ class Config:
     TADR_REDUNDANCY_K = 15
     TADR_REDUNDANCY_MAX_PENALTY = 0.4
     
+    # TADR 仓位解析参数 [指令 2.1]
+    TADR_ALLOCATION_FLOOR = 0.2
+    TADR_ALLOCATION_CAP = 0.8
+    TADR_ALLOCATION_K_BASE = 1.2
+    TADR_ALLOCATION_P_BENCHMARK = 0.85
+    
     # Path settings
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     DATA_PATH = os.path.join(BASE_DIR, "data", "state.json")
