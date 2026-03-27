@@ -1,5 +1,5 @@
 # High-Confidence Advisory Performance Report
-**Generated:** 2026-03-24 19:09:38.327532
+**Generated:** 2026-03-27 18:24:25.102292
 **History Length:** 450 weeks
 
 ## 1. Action Distribution
@@ -21,7 +21,7 @@
 |--------|-------|----------------|----------|
 | BULLISH_ACCUMULATION | 8 | 80.0 | 0.0 |
 | NEUTRAL | 408 | 50.0 | 0.0 |
-| OVERHEATED | 34 | 58.2 | 4.6 |
+| OVERHEATED | 34 | 86.5 | 6.5 |
 
 ## 3a. Confidence Bucket Precision
 
