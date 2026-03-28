@@ -1,110 +1,69 @@
-# Reference: High-Fidelity Discord Notification Workflow (v8.2)
+# BTC Monitor: Premium Discord Notification Standard
 
-Caution: Do not implmente any changes based on this document, it's just a reference.
+This document defines the **High-Fidelity Discord Notification Standard** for the BTC Monitor pipeline (v3.0+). It ensures visual excellence, data integrity in restricted environments, and precise market-close synchronization.
 
-This document serves as a standard reference for implementing "Premium" Discord notifications in Python-based analytic pipelines, ensuring visual excellence, zero-intrusiveness, and precise global scheduling.
+## 1. Aesthetic & Signal Design (Discord Embeds)
 
-## 1. Aesthetic & Readability Design (Discord Embeds)
+Notifications must use **Discord Embeds** to create a structured, "Data-First" professional appearance.
 
-Avoid sending raw text strings. Use **Discord Embeds** to create a structured, professional appearance.
+### 1.1 Dual-Signal Declaration
+BTC Monitor follows a **Dual-Signal** reporting philosophy to differentiate between existing positions and new capital:
+- **存量资金信号 (Stock/Position)**: Managed via TADR V3.0 (`Target Allocation %`). Header emoji: 📈 (ADD), 🛡️ (HOLD), 📉 (REDUCE).
+- **增量资金信号 (Incremental/Cash)**: Managed via Tactical Timing (`BUY_NOW`). Sub-header emojis: 🚀 (BUY_NOW), ⏳ (STAGGER_BUY), 🛑 (WAIT).
 
-### 1.1 Context-Aware Coloring
-
-Color coding provides instant visual feedback before the user even reads the text.
-
-- **Crisis/Error**: Dark Red (`0x992D22`)
-- **Warning/Stress**: Orange (`0xE67E22`)
-- **Neutral/Normal**: Blue (`0x3498DB`)
-- **Success/Alpha**: Green (`0x2ECC71`)
-
-### 1.2 Structured Fields
-
-Use `inline: true` for compact metric display and `inline: false` for multi-column grouping.
-
-- **Fields**: Use emojis in field names (e.g., `🎯 Target Beta`) to aid scannability.
-- **Markdown**: Wrap values in backticks (`` `value` ``) for a monospaced "data-centric" look.
-
-### 1.3 Footer & Metadata
-
-Always include a footer with the system version and source metadata (e.g., Confidence Score, Registry Version) to build trust in the data.
+### 1.2 Color-Coded Actions
+| Action | Color Code | Context |
+| :--- | :--- | :--- |
+| **ADD / BUY_NOW** | `0x2ECC71` | Green: Aggressive accumulation or entry. |
+| **REDUCE / EXIT** | `0x992D22` | Red: Strategic de-risking or overheated exit. |
+| **HOLD / WAIT** | `0x3498DB` | Blue: Neutral market regime or "Do Nothing". |
+| **LOCKED / ERROR** | `0xE67E22` | Orange: Circuit breaker active or data failure. |
 
 ---
 
-## 2. Non-Intrusive Implementation Pattern
+## 2. Infrastructure & Resilience (GHA Optimization)
 
-The notification logic should be a **side effect**, not a core dependency.
+### 2.1 Multi-Exchange Fallback (451 Restricted Location)
+GitHub Action runners are often blocked by Binance Global (HTTP 451). The system **MUST** implement a transparent fallback to maintain zero-downtime signals:
+1. **Primary**: `Binance` (Target: `BTC/USDT`).
+2. **Fallback 1**: `Kraken` (Auto-translated to `BTC/USD`).
+3. **Fallback 2**: `Coinbase` (Auto-translated to `BTC/USD`).
 
-### 2.1 The CLI Flag Pattern
+*Implementation: All logic is encapsulated in `BinanceFetcher` to remain zero-intrusive to the engine.*
 
-Add a dedicated argument (e.g., `--notify-discord`) to your main entry point.
+### 2.2 GitHub Secrets Management
+- **`DISCORD_WEBHOOK_URL`**: Target channel webhook URL.
+- **`FRED_API_KEY`**: Federal Reserve economic data access.
+- **`BINANCE_API_KEY`**: (Optional) For high-frequency fetching, though public data is preferred.
 
-- **Decoupling**: The core engine remains blissfully unaware of Discord; only the output layer handles the network request.
-- **Safety**: Use a `--no-save` or similar flag if the notification run shouldn't modify the persistent state (database).
+---
 
+## 3. Global Scheduling & Precision Guard
+
+### 3.1 Market Close Synchronization (15:45 ET)
+To synchronize with the **Nasdaq market close**, the pipeline runs 15 minutes prior (15:45 Eastern Time). This is handled via a **Dual-Cron & Python Guard** pattern in `.github/workflows/discord-notify.yml`:
+
+- **Cron Triggers**: `45 19,20 * * 1-5` (covering EDT and EST shifts).
+- **Python Precision Check**: 
 ```python
-# Implementation Example in main.py
-if getattr(args, "notify_discord", False):
-    from src.output.discord_notifier import send_discord_signal
-    webhook_url = os.environ.get("ALERT_WEBHOOK_URL")
-    if webhook_url:
-        send_discord_signal(result, webhook_url)
+import pytz
+from datetime import datetime
+et_tz = pytz.timezone('US/Eastern')
+now_et = datetime.now(et_tz)
+# Windows check [15:40, 15:55] ET
+is_target = (now_et.hour == 15 and 40 <= now_et.minute <= 55)
 ```
 
 ---
 
-## 3. GitHub Actions Workflow (Global Scheduling)
+## 4. Implementation Checklist (PR Audit)
 
-Scheduling triggers for specific local times (Paris/Beijing) requires handling UTC offsets and scheduling variance.
-
-### 3.1 UTC Cron Mapping
-
-Since GitHub crons are always UTC, map your local times:
-
-- **14:47 Beijing (CST, UTC+8)** -> `47 06 * * 1-5`
-- **17:17 Paris (CET/CEST)** -> `17 15,16 * * 1-5` (Handles DST shift).
-
-### 3.2 The Python Time Window Check
-
-GitHub Actions may trigger +/- 5 minutes off. Use a Python step to check the exact local time using `pytz`.
-
-```yaml
-- name: Check Time Window
-  id: check
-  shell: python
-  run: |
-    import os, pytz
-    from datetime import datetime
-    bj_tz = pytz.timezone('Asia/Shanghai')
-    now_bj = datetime.now(bj_tz)
-    # Check if we are in the target 14:47 window
-    is_target = (now_bj.hour == 14 and 40 <= now_bj.minute <= 55)
-    should_run = "true" if (is_target or os.environ.get('EVENT') == 'workflow_dispatch') else "false"
-    with open(os.environ['GITHUB_OUTPUT'], 'a') as f: f.write(f'should_run={should_run}\n')
-```
-
----
-
-## 4. Configuration & Security
-
-- **Secrets Management**: Store high-sensitivity Webhook URLs in `GITHUB_REPOSITORY_SECRETS`.
-- **Environment Variables**: Map secrets to env vars in the workflow step.
-- **Rate Limiting**: Use GHA `concurrency` groups to prevent overlapping pushes if the pipeline runs longer than the interval.
-
----
-
-## 5. Testing & Verification
-
-### 5.1 Local Mock Testing
-
-Create a one-off script (`test_discord.py`) that mocks your `Result` object and calls the notifier directly.
-
-- **Verification**: Check formatting, font size, and color rendering on the mobile/desktop Discord clients.
-
-### 5.2 Manual Trigger
-
-Always include `workflow_dispatch` in your YAML to allow for on-demand verification without waiting for the cron.
+- [ ] **Rich Embeds**: No plain text notifications allowed.
+- [ ] **Emoji Scannability**: Use emojis (📈, 💰, 🎯) to distinguish Stock from Incremental signals.
+- [ ] **Metadata Clarity**: Include `Computation ID` (Timestamp in NS) and `System Multiplier` in the footer.
+- [ ] **Zero-Intrusive**: Notification logic must exist as an optional side-effect (`--notify-discord`).
 
 ---
 
 > [!TIP]
-> **Pro-Tip**: Use a custom `avatar_url` and `username` in the Discord payload to give your bot a distinct identity (e.g., "QQQ Monitor AI").
+> **Pro-Tip**: Use the `workflow_dispatch` trigger in the GitHub UI to verify visual rendering before committing to the schedule.
