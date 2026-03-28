@@ -6,8 +6,10 @@ from src.strategy.incremental_buy_engine import IncrementalBuyEngine
 from src.strategy.reporting import build_advisory_report, build_dual_advisory_report
 from src.monitoring.correlation_engine import CorrelationEngine
 from src.strategy.tadr_engine import TADREngine
+import os
+from src.output.discord_notifier import send_discord_signal
 
-def run_evaluation():
+def run_evaluation(args):
     """Trigger a full evaluation cycle and print/notify result."""
     print(f"[{datetime.now().isoformat()}] Starting Market Evaluation Snapshot...")
     
@@ -96,13 +98,24 @@ def run_evaluation():
     print(f"Cash: {cash_recommendation.action} ({cash_recommendation.confidence}%)")
     print("-"*30 + "\n")
     
+    
+    # 5. Discord Notification (Side Effect)
+    if getattr(args, "notify_discord", False):
+        webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
+        if webhook_url:
+            print(f"[{datetime.now().isoformat()}] Sending Discord Signal...")
+            send_discord_signal(v3_recommendation, v3_state, curr_price, webhook_url)
+        else:
+            print(f"[WARNING] --notify-discord flag set but DISCORD_WEBHOOK_URL env var is missing.")
+
     print(f"[{datetime.now().isoformat()}] Cycle Complete.")
 
 def main():
     parser = argparse.ArgumentParser(description="BTC Monitor V3.0 (TADR) Entry Point")
     parser.add_argument("--now", action="store_true", help="Execute immediately")
+    parser.add_argument("--notify-discord", action="store_true", help="Send signal to Discord")
     args = parser.parse_args()
-    run_evaluation()
+    run_evaluation(args)
 
 if __name__ == "__main__":
     main()
