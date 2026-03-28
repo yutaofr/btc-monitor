@@ -24,11 +24,31 @@ def test_fred_net_liquidity_alignment(mocker):
     assert df["net_liquidity"].iloc[0] == 6400
 
 def test_binance_fetch_ohlcv_error(mocker):
+    """Verify that fetch_ohlcv returns None only if ALL exchanges fail."""
     fetcher = BinanceFetcher()
-    mocker.patch.object(fetcher.exchange, 'fetch_ohlcv', side_effect=Exception("API Down"))
+    # Mock primary to fail
+    mocker.patch.object(fetcher.primary, 'fetch_ohlcv', side_effect=Exception("Binance Down"))
+    # Mock fallbacks to also fail
+    for ex in fetcher.fallbacks.values():
+        mocker.patch.object(ex, 'fetch_ohlcv', side_effect=Exception("Fallback Down"))
     
     df = fetcher.fetch_ohlcv()
     assert df is None
+
+def test_binance_fallback_recovery(mocker):
+    """Verify that fetcher recovers from Binance 451 error using Kraken."""
+    fetcher = BinanceFetcher()
+    # Mock primary to fail with 451
+    mocker.patch.object(fetcher.primary, 'fetch_ohlcv', side_effect=Exception("451 Restricted Location"))
+    
+    # Mock Kraken to succeed
+    mock_ohlcv = [[1700000000000, 30000, 31000, 29000, 30500, 1000]]
+    mocker.patch.object(fetcher.fallbacks['kraken'], 'fetch_ohlcv', return_value=mock_ohlcv)
+    
+    df = fetcher.fetch_ohlcv()
+    assert df is not None
+    assert len(df) == 1
+    assert df.iloc[0]['close'] == 30500
 
 def test_binance_ohlcv_parsing(mocker):
     fetcher = BinanceFetcher()
