@@ -104,7 +104,7 @@ def run_evaluation(args):
         webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
         if webhook_url:
             print(f"[{datetime.now().isoformat()}] Sending Discord Signal...")
-            send_discord_signal(v3_recommendation, v3_state, curr_price, webhook_url)
+            send_discord_signal(v3_recommendation, v3_state, curr_price, webhook_url, cash_recommendation=cash_recommendation)
         else:
             print(f"[WARNING] --notify-discord flag set but DISCORD_WEBHOOK_URL env var is missing.")
 

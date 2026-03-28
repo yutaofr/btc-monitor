@@ -2,8 +2,8 @@ import os
 import requests
 import json
 from datetime import datetime
-from typing import Optional, Dict, Any
-from src.strategy.factor_models import Recommendation
+from typing import Optional, Dict, Any, List
+from src.strategy.factor_models import Recommendation, CashAction
 from src.strategy.tadr_engine import TADRInternalState
 
 class DiscordNotifier:
@@ -19,10 +19,19 @@ class DiscordNotifier:
         "LOCKED": 0xE67E22    # Warning/Circuit Breaker Orange
     }
 
+    CASH_EMOJIS = {
+        "BUY_NOW": "🚀",
+        "STAGGER_BUY": "⏳",
+        "WAIT": "🛑",
+        "INSUFFICIENT_DATA": "❓"
+    }
+
     def __init__(self, webhook_url: str):
         self.webhook_url = webhook_url
 
-    def format_embed(self, recommendation: Recommendation, state: TADRInternalState, current_price: float = 0.0) -> Dict[str, Any]:
+    def format_embed(self, recommendation: Recommendation, state: TADRInternalState, 
+                     current_price: float = 0.0, 
+                     cash_recommendation: Optional[Recommendation] = None) -> Dict[str, Any]:
         """Builds a rich Discord Embed payload."""
         
         # Determine color and title status
@@ -38,7 +47,69 @@ class DiscordNotifier:
             f"> {recommendation.summary}"
         )
 
-        embed = {
+        fields = [
+            {
+                "name": "💰 Current Price",
+                "value": f"`${current_price:,.2f}`" if current_price > 0 else "`N/A`",
+                "inline": True
+            },
+            {
+                "name": "📊 Target Allocation",
+                "value": f"`{state.target_allocation:.1%}`",
+                "inline": True
+            },
+            {
+                "name": "🎯 Confidence",
+                "value": f"`{state.confidence:.2f}`",
+                "inline": True
+            }
+        ]
+
+        # Add Incremental Capital Section (new)
+        if cash_recommendation:
+            cash_act = cash_recommendation.action
+            cash_emoji = self.CASH_EMOJIS.get(cash_act, "💰")
+            fields.append({
+                "name": f"{cash_emoji} 增量资金建议 (Incremental)",
+                "value": f"**{cash_act}**\n> {cash_recommendation.summary}",
+                "inline": False
+            })
+
+        # Add more strategic details
+        fields.extend([
+            {
+                "name": "🏛️ Strategic Regime",
+                "value": f"`{recommendation.strategic_regime}`",
+                "inline": True
+            },
+            {
+                "name": "⚡ Tactical State",
+                "value": f"`{recommendation.tactical_state}`",
+                "inline": True
+            },
+            {
+                "name": "🚦 System Multiplier",
+                "value": f"`{min(state.redundancy_multipliers.values()):.2f}x`" if state.redundancy_multipliers else "`1.00x`",
+                "inline": True
+            }
+        ])
+
+        # Add support/blocked factors if noteworthy
+        if recommendation.supporting_factors:
+            fields.append({
+                "name": "✅ Supporting Evidence",
+                "value": ", ".join([f"`{f}`" for f in recommendation.supporting_factors[:5]]),
+                "inline": False
+            })
+            
+        if is_locked:
+            fields.append({
+                "name": "⚠️ Circuit Breaker Active",
+                "value": "System gate locked due to critical data failure/redundancy loss.",
+                "inline": False
+            })
+
+        return {
             "title": title,
             "description": description,
             "color": color,
@@ -47,63 +118,17 @@ class DiscordNotifier:
                 "text": f"BTC Monitor Engine v3.0 | Computation ID: {state.computation_timestamp_ns}",
                 "icon_url": "https://cdn-icons-png.flaticon.com/512/1490/1490900.png"
             },
-            "fields": [
-                {
-                    "name": "💰 Current Price",
-                    "value": f"`${current_price:,.2f}`" if current_price > 0 else "`N/A`",
-                    "inline": True
-                },
-                {
-                    "name": "📊 Target Allocation",
-                    "value": f"`{state.target_allocation:.1%}`",
-                    "inline": True
-                },
-                {
-                    "name": "🎯 Confidence",
-                    "value": f"`{state.confidence:.2f}`",
-                    "inline": True
-                },
-                {
-                    "name": "🏛️ Strategic Regime",
-                    "value": f"`{recommendation.strategic_regime}`",
-                    "inline": True
-                },
-                {
-                    "name": "⚡ Tactical State",
-                    "value": f"`{recommendation.tactical_state}`",
-                    "inline": True
-                },
-                {
-                    "name": "🚦 System Multiplier",
-                    "value": f"`{min(state.redundancy_multipliers.values()):.2f}x`" if state.redundancy_multipliers else "`1.00x`",
-                    "inline": True
-                }
-            ]
+            "fields": fields
         }
 
-        # Add support/blocked factors if noteworthy
-        if recommendation.supporting_factors:
-            embed["fields"].append({
-                "name": "✅ Supporting Evidence",
-                "value": ", ".join([f"`{f}`" for f in recommendation.supporting_factors[:5]]),
-                "inline": False
-            })
-            
-        if is_locked:
-            embed["fields"].append({
-                "name": "⚠️ Circuit Breaker Active",
-                "value": "System gate locked due to critical data failure/redundancy loss.",
-                "inline": False
-            })
-
-        return embed
-
-    def send(self, recommendation: Recommendation, state: TADRInternalState, current_price: float = 0.0) -> bool:
+    def send(self, recommendation: Recommendation, state: TADRInternalState, 
+             current_price: float = 0.0, 
+             cash_recommendation: Optional[Recommendation] = None) -> bool:
         """Sends the notification to Discord."""
         if not self.webhook_url:
             return False
             
-        embed = self.format_embed(recommendation, state, current_price)
+        embed = self.format_embed(recommendation, state, current_price, cash_recommendation)
         payload = {
             "username": "BTC Monitor AI Core",
             "avatar_url": "https://cdn-icons-png.flaticon.com/512/825/825540.png",
@@ -123,6 +148,9 @@ class DiscordNotifier:
             print(f"Error sending Discord notification: {e}")
             return False
 
-def send_discord_signal(recommendation: Recommendation, state: TADRInternalState, current_price: float, webhook_url: str):
+def send_discord_signal(recommendation: Recommendation, state: TADRInternalState, 
+                        current_price: float, 
+                        webhook_url: str, 
+                        cash_recommendation: Optional[Recommendation] = None):
     notifier = DiscordNotifier(webhook_url)
-    notifier.send(recommendation, state, current_price)
+    notifier.send(recommendation, state, current_price, cash_recommendation)
