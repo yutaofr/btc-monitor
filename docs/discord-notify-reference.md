@@ -38,21 +38,14 @@ GitHub Action runners are often blocked by Binance Global (HTTP 451). The system
 
 ---
 
-## 3. Global Scheduling & Precision Guard
+## 3. Global Scheduling
 
 ### 3.1 Market Close Synchronization (15:45 ET)
-To synchronize with the **Nasdaq market close**, the pipeline runs 15 minutes prior (15:45 Eastern Time). This is handled via a **Dual-Cron & Python Guard** pattern in `.github/workflows/discord-notify.yml`:
+To synchronize with the **Nasdaq market close**, the pipeline runs 15 minutes prior (15:45 Eastern Time). This is handled via GitHub Actions scheduling in `.github/workflows/discord-notify.yml`:
 
 - **Cron Triggers**: `45 19,20 * * 1-5` (covering EDT and EST shifts).
-- **Python Precision Check**: 
-```python
-import pytz
-from datetime import datetime
-et_tz = pytz.timezone('US/Eastern')
-now_et = datetime.now(et_tz)
-# Windows check [15:40, 15:55] ET
-is_target = (now_et.hour == 15 and 40 <= now_et.minute <= 55)
-```
+- **Workflow Dispatch**: Manual runs bypass scheduling and execute immediately.
+- **Execution Control**: The workflow no longer performs an in-workflow timing guard; GitHub Actions scheduling is the source of truth.
 
 ---
 
