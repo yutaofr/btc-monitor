@@ -135,6 +135,59 @@ class TechnicalIndicator:
             timestamp=datetime.now(timezone.utc)
         )
 
+    def get_ema21_weekly_score(self):
+        """
+        Evaluate price relative to 21-week EMA (Bull Market Support Band).
+        """
+        df_weekly = self.fetcher.fetch_ohlcv(timeframe="1w", limit=50)
+        if df_weekly is None or len(df_weekly) < 21:
+            return IndicatorResult("EMA21_Weekly", 0, description="Insufficient data", is_valid=False)
+            
+        curr_price = df_weekly.iloc[-1]['close']
+        ema_21 = df_weekly['close'].ewm(span=21).mean().iloc[-1]
+        
+        ratio = curr_price / ema_21
+        
+        # Above EMA21 -> Bullish (2-10)
+        # Below EMA21 -> Bearish (-2 to -10)
+        if ratio >= 1.0:
+            score = min(10.0, 2.0 + (ratio - 1.0) * 20.0)
+        else:
+            score = max(-10.0, -2.0 - (1.0 - ratio) * 40.0)
+            
+        return IndicatorResult(
+            name="EMA21_Weekly",
+            score=round(score, 2),
+            details={"price": curr_price, "ema21": ema_21, "ratio": ratio},
+            description=f"Price is {ratio:.2f}x of 21w-EMA",
+            timestamp=datetime.now(timezone.utc)
+        )
+
+    def get_rsi_weekly_score(self):
+        """
+        Standard Weekly RSI normalized score.
+        """
+        df_weekly = self.fetcher.fetch_ohlcv(timeframe="1w", limit=50)
+        if df_weekly is None or len(df_weekly) < 20:
+             return IndicatorResult("RSI_Weekly", 0, description="Insufficient data", is_valid=False)
+             
+        rsi = calculate_rsi(df_weekly['close'].iloc[:-1])
+        val = rsi.iloc[-1]
+        
+        # Map RSI [0, 100] to [+10, -10]
+        # RSI 30 (Oversold) -> +10
+        # RSI 70 (Overbought) -> -10
+        # RSI 50 -> 0
+        score = (50 - val) / 2.0
+        
+        return IndicatorResult(
+            name="RSI_Weekly",
+            score=round(score, 2),
+            details={"rsi": round(val, 2)},
+            description=f"Weekly RSI is {val:.1f}",
+            timestamp=datetime.now(timezone.utc)
+        )
+
 if __name__ == "__main__":
     indicator = TechnicalIndicator()
     print("Testing 200WMA...")

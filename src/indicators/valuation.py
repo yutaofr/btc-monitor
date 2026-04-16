@@ -141,6 +141,15 @@ class ValuationIndicator:
             timestamp=datetime.now(timezone.utc)
         )
 
+    def get_hash_ribbon_score(self):
+        """
+        Evaluate Hash Ribbon signal.
+        Logic: 30d/60d hash rate moving averages.
+        """
+        from src.indicators.miner_cycle import calculate_hash_ribbon
+        df_hash = self.fetcher.get_hash_rate(timespan="3months")
+        return calculate_hash_ribbon(df_hash)
+
 if __name__ == "__main__":
     indicator = ValuationIndicator()
     print(indicator.get_puell_multiple_score())

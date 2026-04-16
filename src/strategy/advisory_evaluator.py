@@ -22,12 +22,18 @@ class AdvisoryEvaluator:
         results.append(self.tech.get_200wma_score())
         results.append(self.tech.get_pi_cycle_score())
         results.append(self.tech.get_rsi_divergence_score())
+        results.append(self.tech.get_short_term_stretch_score())
+        results.append(self.tech.get_ema21_weekly_score())
+        results.append(self.tech.get_rsi_weekly_score())
 
         results.append(self.macro.get_net_liquidity_score())
         results.append(self.macro.get_yield_divergence_score())
+        results.append(self.macro.get_dxy_regime_score())
 
         results.append(self.sentiment.get_fear_greed_score())
         results.append(self.sentiment.get_cycle_position_score())
+
+        results.append(self.valuation.get_hash_ribbon_score())
 
         res_mvrv = self.valuation.get_mvrv_proxy_score()
         res_mvrv.weight = 1.5
