@@ -31,7 +31,7 @@ LOG_FILE="$PROJECT_ROOT/outputs/logs/mac_daily.log"
     # 5. Run Orchestration
     # Using --rerun to ensure we overwrite if multiple manual runs happened
     echo "[$(date -u)] Triggering run_weekly_orchestration.sh..."
-    bash scripts/run_weekly_orchestration.sh --rerun --skip-ai
+    bash scripts/run_weekly_orchestration.sh --rerun
     
     echo "[$(date -u)] LAUNCH_MAC_DAILY: Success"
 } >> "$LOG_FILE" 2>&1

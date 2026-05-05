@@ -20,6 +20,6 @@ data/*.csv
 # Docker
 .docker/
 
-# Artifacts
-outputs/
-.temp/
+# Runtime outputs
+.run_lock
+# (Keep outputs/ and .temp/ unignored for Gemini CLI access)
