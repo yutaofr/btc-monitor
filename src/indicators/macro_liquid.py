@@ -48,14 +48,20 @@ class MacroIndicator:
         Falling (30 < 90) = Bullish (+6.0). Rising (30 > 90) = Bearish (-6.0).
         """
         yields = self.fetcher.get_us10y()
-        if yields is None or len(yields) < 90:
-            return IndicatorResult("Yields", 0, description="Insufficient data", is_valid=False)
+        if yields is None:
+            return IndicatorResult("Yields", 0, description="No data from fetcher", is_valid=False)
+            
+        # Clean data for SMA: ffill then drop any remaining NaNs
+        yields = yields.ffill().dropna()
+        
+        if len(yields) < 90:
+            return IndicatorResult("Yields", 0, description=f"Insufficient clean data (len={len(yields)})", is_valid=False)
 
         sma30 = yields.rolling(window=30).mean().iloc[-1]
         sma90 = yields.rolling(window=90).mean().iloc[-1]
         
         if pd.isna(sma30) or pd.isna(sma90):
-            return IndicatorResult("Yields", 0, description="SMA calculation failed", is_valid=False)
+            return IndicatorResult("Yields", 0, description="SMA calculation failed (NaN)", is_valid=False)
 
         if sma30 < sma90:
             score = 6.0 
@@ -78,14 +84,20 @@ class MacroIndicator:
         Falling dollar = Bullish (+6.0). Rising dollar = Bearish (-6.0).
         """
         dxy = self.fetcher.get_dxy()
-        if dxy is None or len(dxy) < 90:
-            return IndicatorResult("DXY_Regime", 0, description="Insufficient data", is_valid=False)
+        if dxy is None:
+            return IndicatorResult("DXY_Regime", 0, description="No data from fetcher", is_valid=False)
+            
+        # Clean data for SMA
+        dxy = dxy.ffill().dropna()
+        
+        if len(dxy) < 90:
+            return IndicatorResult("DXY_Regime", 0, description=f"Insufficient clean data (len={len(dxy)})", is_valid=False)
 
         sma30 = dxy.rolling(window=30).mean().iloc[-1]
         sma90 = dxy.rolling(window=90).mean().iloc[-1]
         
         if pd.isna(sma30) or pd.isna(sma90):
-            return IndicatorResult("DXY_Regime", 0, description="SMA calculation failed", is_valid=False)
+            return IndicatorResult("DXY_Regime", 0, description="SMA calculation failed (NaN)", is_valid=False)
 
         if sma30 < sma90:
             score = 6.0 

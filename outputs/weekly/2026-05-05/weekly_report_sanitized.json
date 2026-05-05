@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-05-05T22:12:32.730215",
+  "timestamp": "2026-05-05T22:21:58.890610",
   "v3_recommendation": {
     "action": "ADD",
-    "confidence": 74,
+    "confidence": 66,
     "strategic_regime": "Neutral",
     "tactical_state": "CONFIRMED",
     "supporting_factors": [
@@ -12,13 +12,16 @@
       "MVRV_Proxy",
       "Puell_Multiple"
     ],
-    "conflicting_factors": [],
-    "summary": "TADR V3: Target Allocation 61.9%. Confidence 74.4%."
+    "conflicting_factors": [
+      "Yields",
+      "DXY_Regime"
+    ],
+    "summary": "TADR V3: Target Allocation 54.2%. Confidence 66.7%."
   },
   "v3_state": {
-    "strategic_score": 2.28939965,
-    "confidence": 0.74395621,
-    "target_allocation": 0.61948396,
+    "strategic_score": 1.48477523,
+    "confidence": 0.66686168,
+    "target_allocation": 0.5424643,
     "regime_labels": [
       "Neutral"
     ],
@@ -64,7 +67,7 @@
     },
     {
       "name": "EMA21_Weekly",
-      "score": 2.77986227,
+      "score": 2.75072721,
       "is_valid": true
     },
     {
@@ -79,13 +82,13 @@
     },
     {
       "name": "Yields",
-      "score": 0,
-      "is_valid": false
+      "score": -6.0,
+      "is_valid": true
     },
     {
       "name": "DXY_Regime",
-      "score": 0,
-      "is_valid": false
+      "score": -6.0,
+      "is_valid": true
     },
     {
       "name": "FearGreed",

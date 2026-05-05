@@ -1,27 +1,18 @@
-The weekly report for **2026-05-05** indicates a positive market outlook with a high-confidence accumulation signal.
+The analysis of the `weekly_report_sanitized.json` for **May 5, 2026**, reveals a market in a **Neutral Strategic Regime** with a **Confirmed Tactical State**, leading to an **ADD** recommendation.
 
-### Key Advisory Metrics
+### **Key Performance Indicators**
 *   **V3 Recommendation:** `ADD`
-*   **Target Allocation:** **61.95%**
-*   **Confidence Score:** **74.4%**
-*   **Strategic Regime:** `Neutral`
-*   **Tactical State:** `CONFIRMED`
+*   **Target Allocation:** 54.2%
+*   **Confidence Score:** 66.7%
+*   **Strategic Regime:** Neutral
+*   **Tactical State:** CONFIRMED
 
-### Indicator Breakdown
-The `ADD` recommendation is supported by strong valuation and structural indicators, though some macro data feeds were invalid.
+### **Market Evidence Analysis**
+*   **Bullish Drivers (Supporting Factors):** Strong technical and valuation support from the **200WMA**, **Pi Cycle**, and **RSI Weekly**. On-chain metrics like **MVRV Proxy** (Score: 8.0) and **Puell Multiple** (Score: 5.33) suggest significant fundamental value.
+*   **Bearish Headwinds (Conflicting Factors):** Macro environment remains restrictive, with **Yields** and **DXY Regime** both scoring **-6.0**, indicating a strong negative correlation impact from the dollar and treasury rates.
+*   **System Health:**
+    *   **Fail-Closed Status:** The system remains operational. Although `Production_Cost`, `Options_Wall`, and `ETF_Flow` are marked `is_valid: false`, they are likely research-only or non-critical, as the `ProbabilisticConfidenceScorer` has not triggered a system lock.
+    *   **Gate Activity:** Both `MVRV_Proxy` and `Net_Liquidity` gates are currently **inactive**, meaning they are not currently overriding the primary scoring logic.
 
-| Category | Indicator | Score | Status |
-| :--- | :--- | :--- | :--- |
-| **Valuation** | `MVRV_Proxy` | **8.0** | High Value |
-| | `Puell_Multiple` | **5.33** | Strong |
-| **Technical** | `Pi_Cycle` | **5.0** | Positive |
-| | `200WMA` | **4.03** | Support |
-| | `RSI_Weekly` | **4.27** | Positive |
-| **Macro** | `Net_Liquidity` | **2.0** | Stable |
-| | `Yields` / `DXY` | **0.0** | **Invalid Data** |
-
-### Observations
-1.  **High Confidence:** Despite the `Neutral` regime label, the combined evidence from `MVRV_Proxy` and `Puell_Multiple` pushed the target allocation above the 60% threshold, triggering the `ADD` action.
-2.  **Missing Macro Data:** Both `Yields` and `DXY_Regime` returned `is_valid: false`. While the system maintained high confidence (74.4%), it is operating below its 2-critical-factor failure threshold.
-3.  **Legacy Divergence:** The legacy `PositionAdvisoryEngine` and `IncrementalBuyEngine` are both in a `HOLD`/`WAIT` state with 50% confidence, highlighting the more aggressive (and data-integrated) nature of the V3 TADR engine in this specific regime.
-4.  **Tactical Confirmation:** Short-term indicators like `RSI_Div` and `Short_Term_Stretch` are neutral (0.0), but the overall trend confirmation is sufficient to maintain the `ADD` signal.
+### **Legacy Comparison**
+The legacy engines (`PositionAdvisoryEngine` and `IncrementalBuyEngine`) are more conservative, both issuing `HOLD`/`WAIT` signals with neutral 50% confidence, highlighting the V3 engine's increased sensitivity to the current valuation-driven opportunity.

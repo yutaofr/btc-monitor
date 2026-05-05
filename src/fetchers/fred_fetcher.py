@@ -46,11 +46,11 @@ class FredFetcher:
 
     def get_us10y(self):
         """Fetch 10-Year Treasury Constant Maturity Rate"""
-        return self.get_series("DGS10", limit=60) # Increased limit for SMA
+        return self.get_series("DGS10", limit=120) # Need >90 for SMA90
 
     def get_dxy(self):
         """Fetch US Dollar Index (Trade Weighted)"""
-        return self.get_series("DTWEXBGS", limit=60) # Using Trade Weighted U.S. Dollar Index: Broad, Goods and Services
+        return self.get_series("DTWEXBGS", limit=120) # Need >90 for SMA90
 
 if __name__ == "__main__":
     fetcher = FredFetcher()
