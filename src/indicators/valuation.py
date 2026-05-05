@@ -96,7 +96,7 @@ class ValuationIndicator:
             2.0,
             details={"research_only": True},
             description="Research-only: network fundamental floor placeholder is surfaced for reference",
-            is_valid=False,
+            is_valid=True,
         )
 
     def get_mvrv_proxy_score(self, price=None):
