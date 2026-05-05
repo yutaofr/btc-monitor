@@ -19,3 +19,7 @@ data/*.csv
 
 # Docker
 .docker/
+
+# Artifacts
+outputs/
+.temp/
