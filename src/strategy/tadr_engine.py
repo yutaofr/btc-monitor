@@ -115,7 +115,7 @@ class TADREngine:
             summary = f"TADR V3: Market Overheated (Score {norm_score:.1f}). Target reduced to {target_allocation:.1%}."
         elif target_allocation > (self.resolver.floor + 0.1): # 显著高于底仓才建议 ADD
             action = Action.ADD
-            summary = f"TADR V3: Target Allocation {target_allocation:.1%}. Confidence {confidence:.2f}."
+            summary = f"TADR V3: Target Allocation {target_allocation:.1%}. Confidence {confidence:.1%}."
         else:
             action = Action.HOLD
             summary = f"TADR V3: Holding at/near base allocation ({target_allocation:.1%})."

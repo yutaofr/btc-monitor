@@ -35,29 +35,40 @@ def post_to_discord(webhook_url, content, username="BTC Monitor AI"):
         return None
 
 def generate_raw_digest(json_path):
-    """Generates a human-readable markdown summary from the sanitized JSON."""
+    """Generates a high-fidelity markdown summary from the sanitized JSON."""
     try:
         with open(json_path, 'r') as f:
             data = json.load(f)
             
         v3 = data.get("v3_recommendation", {})
         state = data.get("v3_state", {})
+        legacy = data.get("legacy", {})
         
         action = v3.get("action", "N/A")
         confidence = v3.get("confidence", 0)
         allocation = state.get("target_allocation", 0)
         regime = v3.get("strategic_regime", "N/A")
         
-        emoji = "📈" if action == "ADD" else "📉" if action == "REDUCE" else "🛡️"
+        status_emoji = "📈" if action == "ADD" else "📉" if action == "REDUCE" else "🛡️"
+        
+        # Build Factor Summary (top 5)
+        factors = v3.get("supporting_factors", [])
+        factor_str = ", ".join([f"`{f}`" for f in factors[:5]]) if factors else "None"
         
         digest = (
-            f"# {emoji} BTC Monitor Raw Signal: **{action}**\n"
-            f"**Target Allocation**: `{allocation:.1%}`\n"
-            f"**Confidence**: `{confidence}%`\n"
-            f"**Market Regime**: `{regime}`\n\n"
+            f"## {status_emoji} BTC Monitor V3 Signal: **{action}**\n"
             f"**Summary**: {v3.get('summary', 'N/A')}\n\n"
-            f"--- \n"
-            f"*AI interpretation skipped due to environment constraints.*"
+            f"**📊 Key Metrics**:\n"
+            f"- **Target Allocation**: `{allocation:.1%}`\n"
+            f"- **System Confidence**: `{confidence}%`\n"
+            f"- **Market Regime**: `{regime}`\n"
+            f"- **Tactical State**: `{v3.get('tactical_state', 'N/A')}`\n\n"
+            f"**✅ Supporting Factors**: {factor_str}\n\n"
+            f"**🔄 Legacy Sync**:\n"
+            f"- Position: `{legacy.get('pos', {}).get('action', 'N/A')}`\n"
+            f"- Cash: `{legacy.get('cash', {}).get('action', 'N/A')}`\n\n"
+            f"---\n"
+            f"*Note: AI interpretation skipped due to background environment. Using Raw Data fallback.*"
         )
         return digest
     except Exception as e:
