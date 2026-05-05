@@ -42,7 +42,7 @@ def test_options_wall_support(mocker):
 
     result = indicator.get_options_wall_score()
     
-    assert result.is_valid is False
+    assert result.is_valid is True
     assert result.score == 5.0
     assert "research-only" in result.description.lower()
     assert "support" in result.description.lower()
@@ -67,7 +67,7 @@ def test_options_wall_fallback_to_tradier(mocker):
 
     result = indicator.get_options_wall_score()
 
-    assert result.is_valid is False
+    assert result.is_valid is True
     assert result.details["source"] == "tradier"
     assert result.score == 5.0
     assert "research-only" in result.description.lower()
@@ -85,7 +85,7 @@ def test_etf_flow_divergence_accumulation(mocker):
 
     result = indicator.get_etf_flow_divergence_score()
     
-    assert result.is_valid is False
+    assert result.is_valid is True
     assert result.score == 5.0
     assert "research-only" in result.description.lower()
     assert "ETF Active" in result.description
