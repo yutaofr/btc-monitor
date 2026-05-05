@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, timezone
 from src.fetchers.binance_fetcher import BinanceFetcher
 from src.indicators.base import IndicatorResult
+from src.strategy.factor_utils import quantize_score
 
 class SentimentCycleIndicator:
     def __init__(self, fetcher=None):
@@ -26,7 +27,7 @@ class SentimentCycleIndicator:
             
             return IndicatorResult(
                 name="FearGreed",
-                score=round(score, 2),
+                score=quantize_score(score),
                 details={"value": val},
                 description=f"Fear & Greed Index is at {val} ({data['data'][0]['value_classification']})",
                 timestamp=datetime.now(timezone.utc)
@@ -62,8 +63,8 @@ class SentimentCycleIndicator:
              
         return IndicatorResult(
             name="Cycle_Pos",
-            score=round(score, 2),
-            details={"drawdown": round(drawdown, 4), "ath": ath},
+            score=quantize_score(score),
+            details={"drawdown": quantize_score(drawdown), "ath": ath},
             description=f"Market is {abs(drawdown)*100:.1f}% off from ATH",
             timestamp=datetime.now(timezone.utc)
         )

@@ -2,6 +2,7 @@ import pandas as pd
 from datetime import datetime, timezone
 from src.fetchers.blockchain_fetcher import BlockchainFetcher
 from src.indicators.base import IndicatorResult
+from src.strategy.factor_utils import quantize_score
 
 class ValuationIndicator:
     """
@@ -47,8 +48,8 @@ class ValuationIndicator:
             
         return IndicatorResult(
             name="Puell_Multiple",
-            score=round(score, 2),
-            details={"puell": round(puell, 4), "revenue": round(current_rev, 2)},
+            score=quantize_score(score),
+            details={"puell": quantize_score(puell), "revenue": quantize_score(current_rev)},
             description=f"Puell Multiple is {puell:.2f} ({'low' if puell < 1.0 else 'high'} revenue relative to year avg)",
             timestamp=datetime.now(timezone.utc)
         )
@@ -135,8 +136,8 @@ class ValuationIndicator:
             
         return IndicatorResult(
             name="MVRV_Proxy",
-            score=round(score, 2),
-            details={"mvrv_proxy": round(mvrv_proxy, 4), "cost_basis": round(cost_basis_proxy, 2)},
+            score=quantize_score(score),
+            details={"mvrv_proxy": quantize_score(mvrv_proxy), "cost_basis": quantize_score(cost_basis_proxy)},
             description=f"Price is {mvrv_proxy:.2f}x of 2-year cost basis proxy",
             timestamp=datetime.now(timezone.utc)
         )

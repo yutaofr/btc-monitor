@@ -76,10 +76,11 @@ class ProbabilisticConfidenceScorer:
 
         # 5. 熔断强制覆盖 [指令 2.2]
         # 如果失效的核心因子超过阈值，置信度直接降为 0.0
+        from src.strategy.factor_utils import quantize_score
         if invalid_critical_count >= 2 and not disable_circuit_breaker:
             final_confidence = 0.0
         else:
-            final_confidence = float(np.clip(eta * confluence * total_redundancy_penalty, 0.0, 1.0))
+            final_confidence = float(np.clip(quantize_score(eta * confluence * total_redundancy_penalty), 0.0, 1.0))
             
         return final_confidence, multipliers, gate_status
 

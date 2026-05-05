@@ -3,6 +3,7 @@ import numpy as np
 from datetime import datetime, timezone
 from src.fetchers.binance_fetcher import BinanceFetcher
 from src.indicators.base import IndicatorResult, calculate_rsi
+from src.strategy.factor_utils import quantize_score
 
 class TechnicalIndicator:
     def __init__(self, fetcher=None):
@@ -33,7 +34,7 @@ class TechnicalIndicator:
             
         return IndicatorResult(
             name="200WMA",
-            score=round(score, 2),
+            score=quantize_score(score),
             details={"close": confirmed_close, "200wma": wma_200, "ratio": ratio},
             description=f"Price is {ratio:.2f}x of 200WMA",
             timestamp=datetime.now(timezone.utc)
@@ -63,7 +64,7 @@ class TechnicalIndicator:
             
         return IndicatorResult(
             name="Pi_Cycle",
-            score=score,
+            score=quantize_score(score),
             details={"111dma": sma_111, "350dma_x2": sma_350_x2},
             description="Pi Cycle Top gap is healthy" if score > 0 else "Pi Cycle Top imminent",
             timestamp=datetime.now(timezone.utc)
@@ -98,7 +99,7 @@ class TechnicalIndicator:
             
         return IndicatorResult(
             name="RSI_Div",
-            score=score,
+            score=quantize_score(score),
             details={"curr_rsi": curr_rsi, "prev_rsi": prev_rsi},
             description=desc,
             timestamp=datetime.now(timezone.utc)
@@ -129,7 +130,7 @@ class TechnicalIndicator:
             
         return IndicatorResult(
             name="Short_Term_Stretch",
-            score=score,
+            score=quantize_score(score),
             details={"current": curr_price, "ema_26w": ema_26w, "ratio": ratio},
             description=f"Price stretch vs 26w EMA is {ratio:.2f}x",
             timestamp=datetime.now(timezone.utc)
@@ -157,7 +158,7 @@ class TechnicalIndicator:
             
         return IndicatorResult(
             name="EMA21_Weekly",
-            score=round(score, 2),
+            score=quantize_score(score),
             details={"price": curr_price, "ema21": ema_21, "ratio": ratio},
             description=f"Price is {ratio:.2f}x of 21w-EMA",
             timestamp=datetime.now(timezone.utc)
@@ -182,8 +183,8 @@ class TechnicalIndicator:
         
         return IndicatorResult(
             name="RSI_Weekly",
-            score=round(score, 2),
-            details={"rsi": round(val, 2)},
+            score=quantize_score(score),
+            details={"rsi": quantize_score(val)},
             description=f"Weekly RSI is {val:.1f}",
             timestamp=datetime.now(timezone.utc)
         )

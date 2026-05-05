@@ -40,4 +40,5 @@ class AllocationResolver:
         # 当 confidence=0.0, alloc = Floor
         final_allocation = self.floor + (theoretical_alloc - self.floor) * confidence
 
-        return float(np.clip(final_allocation, 0.0, 1.0))
+        from src.strategy.factor_utils import quantize_score
+        return float(np.clip(quantize_score(final_allocation), 0.0, 1.0))

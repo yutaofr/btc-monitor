@@ -1,0 +1,355 @@
+{
+  "timestamp": "2026-05-05T20:30:27.229676",
+  "raw_results": [
+    {
+      "name": "200WMA",
+      "score": 4.03187883,
+      "weight": 1.0,
+      "details": {
+        "close": 78568.57,
+        "200wma": 60511.55529999999,
+        "ratio": 1.298406058321889
+      },
+      "description": "Price is 1.30x of 200WMA",
+      "is_valid": true,
+      "timestamp": "2026-05-05 18:30:11.669857+00:00"
+    },
+    {
+      "name": "Pi_Cycle",
+      "score": 5.0,
+      "weight": 1.0,
+      "details": {
+        "111dma": 73978.74243243242,
+        "350dma_x2": 191814.58285714284
+      },
+      "description": "Pi Cycle Top gap is healthy",
+      "is_valid": true,
+      "timestamp": "2026-05-05 18:30:12.370027+00:00"
+    },
+    {
+      "name": "RSI_Div",
+      "score": 0.0,
+      "weight": 1.0,
+      "details": {
+        "curr_rsi": 41.46687234333428,
+        "prev_rsi": 31.63805364550808
+      },
+      "description": "No RSI Divergence",
+      "is_valid": true,
+      "timestamp": "2026-05-05 18:30:12.609027+00:00"
+    },
+    {
+      "name": "Short_Term_Stretch",
+      "score": 0.0,
+      "weight": 1.0,
+      "details": {
+        "current": 81440.44,
+        "ema_26w": 77659.76405181715,
+        "ratio": 1.0486825577484404
+      },
+      "description": "Price stretch vs 26w EMA is 1.05x",
+      "is_valid": true,
+      "timestamp": "2026-05-05 18:30:12.851862+00:00"
+    },
+    {
+      "name": "EMA21_Weekly",
+      "score": 2.72057503,
+      "weight": 1.0,
+      "details": {
+        "price": 81440.44,
+        "ema21": 78608.28176989367,
+        "ratio": 1.0360287512503679
+      },
+      "description": "Price is 1.04x of 21w-EMA",
+      "is_valid": true,
+      "timestamp": "2026-05-05 18:30:13.093496+00:00"
+    },
+    {
+      "name": "RSI_Weekly",
+      "score": 4.26656383,
+      "weight": 1.0,
+      "details": {
+        "rsi": 41.46687234
+      },
+      "description": "Weekly RSI is 41.5",
+      "is_valid": true,
+      "timestamp": "2026-05-05 18:30:13.332541+00:00"
+    },
+    {
+      "name": "Net_Liquidity",
+      "score": 2.0,
+      "weight": 1.0,
+      "details": {
+        "change_pct": 0.29062413,
+        "current": 5718020.253
+      },
+      "description": "Liquidity is expanding",
+      "is_valid": true,
+      "timestamp": "2026-05-05 18:30:14.307286+00:00"
+    },
+    {
+      "name": "Yields",
+      "score": 0,
+      "weight": 1.0,
+      "details": {},
+      "description": "Insufficient data",
+      "is_valid": false,
+      "timestamp": null
+    },
+    {
+      "name": "DXY_Regime",
+      "score": 0,
+      "weight": 1.0,
+      "details": {},
+      "description": "Insufficient data",
+      "is_valid": false,
+      "timestamp": null
+    },
+    {
+      "name": "FearGreed",
+      "score": 0.0,
+      "weight": 1.0,
+      "details": {
+        "value": 50
+      },
+      "description": "Fear & Greed Index is at 50 (Neutral)",
+      "is_valid": true,
+      "timestamp": "2026-05-05 18:30:20.680852+00:00"
+    },
+    {
+      "name": "Cycle_Pos",
+      "score": -0.75245651,
+      "weight": 1.0,
+      "details": {
+        "drawdown": -0.3774263,
+        "ath": 126199.63
+      },
+      "description": "Market is 37.7% off from ATH",
+      "is_valid": true,
+      "timestamp": "2026-05-05 18:30:22.995409+00:00"
+    },
+    {
+      "name": "Hash_Ribbon",
+      "score": -2.0,
+      "weight": 1.0,
+      "details": {
+        "ma30": 958439867.8028013,
+        "ma60": 972975637.8318233
+      },
+      "description": "Miner capitulation in progress.",
+      "is_valid": true,
+      "timestamp": "2026-04-28 00:00:00"
+    },
+    {
+      "name": "MVRV_Proxy",
+      "score": 8.0,
+      "weight": 1.5,
+      "details": {
+        "mvrv_proxy": 0.91686627,
+        "cost_basis": 87065.99035616
+      },
+      "description": "Price is 0.92x of 2-year cost basis proxy",
+      "is_valid": true,
+      "timestamp": "2026-05-05 18:30:23.279688+00:00"
+    },
+    {
+      "name": "Puell_Multiple",
+      "score": 5.33389693,
+      "weight": 1.2,
+      "details": {
+        "puell": 0.79163144,
+        "revenue": 35894449.05340777
+      },
+      "description": "Puell Multiple is 0.79 (low revenue relative to year avg)",
+      "is_valid": true,
+      "timestamp": "2026-05-05 18:30:23.413535+00:00"
+    },
+    {
+      "name": "Production_Cost",
+      "score": 2.0,
+      "weight": 1.0,
+      "details": {
+        "research_only": true
+      },
+      "description": "Research-only: network fundamental floor placeholder is surfaced for reference",
+      "is_valid": false,
+      "timestamp": null
+    },
+    {
+      "name": "Options_Wall",
+      "score": 2.0,
+      "weight": 1.0,
+      "details": {
+        "source": "deribit",
+        "strike": 70000.0,
+        "expiry": "2026-05-29",
+        "open_interest": 3332.9,
+        "research_only": true
+      },
+      "description": "Research-only: BTC neutral distance from Put Wall at 70000.0 (2026-05-29)",
+      "is_valid": false,
+      "timestamp": "2026-05-05 18:30:23.628330+00:00"
+    },
+    {
+      "name": "ETF_Flow",
+      "score": 0,
+      "weight": 1.0,
+      "details": {
+        "etf_price": 46.165,
+        "vol": 29821493.0,
+        "research_only": true
+      },
+      "description": "Research-only: ETF Price: 46.165, Vol: 29,821,493",
+      "is_valid": false,
+      "timestamp": "2026-05-05 18:30:26.993721+00:00"
+    }
+  ],
+  "v3_recommendation": {
+    "action": "ADD",
+    "confidence": 74,
+    "strategic_regime": "Neutral",
+    "tactical_state": "CONFIRMED",
+    "supporting_factors": [
+      "200WMA",
+      "Pi_Cycle",
+      "RSI_Weekly",
+      "MVRV_Proxy",
+      "Puell_Multiple"
+    ],
+    "conflicting_factors": [],
+    "missing_required_blocks": [],
+    "missing_required_factors": [],
+    "blocked_reasons": [],
+    "freshness_warnings": [
+      "Hash_Ribbon stale"
+    ],
+    "excluded_research_factors": [
+      "Production_Cost",
+      "Options_Wall",
+      "ETF_Flow"
+    ],
+    "summary": "TADR V3: Target Allocation 61.9%. Confidence 0.74."
+  },
+  "v3_state": {
+    "computation_timestamp_ns": 1778005826995736000,
+    "raw_scores_map": {
+      "200WMA": 4.03187883,
+      "Pi_Cycle": 5.0,
+      "RSI_Div": 0.0,
+      "Short_Term_Stretch": 0.0,
+      "EMA21_Weekly": 2.72057503,
+      "RSI_Weekly": 4.26656383,
+      "Net_Liquidity": 2.0,
+      "Yields": 0.0,
+      "DXY_Regime": 0.0,
+      "FearGreed": 0.0,
+      "Cycle_Pos": -0.75245651,
+      "Hash_Ribbon": -2.0,
+      "MVRV_Proxy": 8.0,
+      "Puell_Multiple": 5.33389693,
+      "Production_Cost": 2.0,
+      "Options_Wall": 2.0,
+      "ETF_Flow": 0.0
+    },
+    "weighted_scores_map": {
+      "200WMA": 4.03187883,
+      "Pi_Cycle": 5.0,
+      "RSI_Div": 0.0,
+      "Short_Term_Stretch": 0.0,
+      "EMA21_Weekly": 2.72057503,
+      "RSI_Weekly": 4.26656383,
+      "Net_Liquidity": 2.5,
+      "FearGreed": 0.0,
+      "Cycle_Pos": -0.75245651,
+      "Hash_Ribbon": -2.0,
+      "MVRV_Proxy": 12.0,
+      "Puell_Multiple": 6.40067632
+    },
+    "redundancy_multipliers": {
+      "200WMA": 1.0,
+      "Pi_Cycle": 1.0,
+      "RSI_Div": 1.0,
+      "Short_Term_Stretch": 1.0,
+      "EMA21_Weekly": 1.0,
+      "RSI_Weekly": 1.0,
+      "Net_Liquidity": 1.0,
+      "FearGreed": 1.0,
+      "Cycle_Pos": 1.0,
+      "Hash_Ribbon": 1.0,
+      "MVRV_Proxy": 1.0,
+      "Puell_Multiple": 1.0
+    },
+    "correlation_matrix_snapshot": {
+      "Net_Liquidity": 0.5,
+      "DXY": -0.4
+    },
+    "gate_status": {
+      "MVRV_Proxy": {
+        "is_active": false,
+        "last_observed_at": "2026-05-05 18:30:23.279688+00:00"
+      },
+      "Net_Liquidity": {
+        "is_active": false,
+        "last_observed_at": "2026-05-05 18:30:14.307286+00:00"
+      }
+    },
+    "strategic_score": 2.28543395,
+    "confidence": 0.7438734571598878,
+    "target_allocation": 0.6193168067982916,
+    "regime_labels": [
+      "Neutral"
+    ],
+    "is_circuit_breaker_active": false
+  },
+  "legacy": {
+    "pos": {
+      "action": "HOLD",
+      "confidence": 50,
+      "strategic_regime": "NEUTRAL",
+      "tactical_state": "NEUTRAL",
+      "supporting_factors": [],
+      "conflicting_factors": [],
+      "missing_required_blocks": [],
+      "missing_required_factors": [],
+      "blocked_reasons": [],
+      "freshness_warnings": [
+        "Hash_Ribbon is stale"
+      ],
+      "excluded_research_factors": [
+        "Production_Cost",
+        "Options_Wall",
+        "ETF_Flow"
+      ],
+      "summary": "Market is in a neutral or transitional phase."
+    },
+    "cash": {
+      "action": "WAIT",
+      "confidence": 50,
+      "strategic_regime": "NEUTRAL",
+      "tactical_state": "NEUTRAL",
+      "supporting_factors": [
+        "Cycle_Pos",
+        "Hash_Ribbon"
+      ],
+      "conflicting_factors": [
+        "200WMA",
+        "Pi_Cycle",
+        "EMA21_Weekly",
+        "RSI_Weekly",
+        "Net_Liquidity"
+      ],
+      "missing_required_blocks": [],
+      "missing_required_factors": [],
+      "blocked_reasons": [],
+      "freshness_warnings": [
+        "Hash_Ribbon is stale"
+      ],
+      "excluded_research_factors": [
+        "Production_Cost",
+        "Options_Wall",
+        "ETF_Flow"
+      ],
+      "summary": "No clear timing advantage detected. Wait or use standard DCA."
+    }
+  }
+}

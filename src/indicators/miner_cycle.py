@@ -1,6 +1,7 @@
 import pandas as pd
 from datetime import datetime
 from src.indicators.base import IndicatorResult
+from src.strategy.factor_utils import quantize_score
 
 def calculate_hash_ribbon(hash_df: pd.DataFrame) -> IndicatorResult:
     """
@@ -39,9 +40,9 @@ def calculate_hash_ribbon(hash_df: pd.DataFrame) -> IndicatorResult:
         
     return IndicatorResult(
         "Hash_Ribbon", 
-        score, 
+        quantize_score(score), 
         is_valid=True,
         timestamp=latest.name,
-        details={"ma30": round(ma30, 2), "ma60": round(ma60, 2)},
+        details={"ma30": quantize_score(ma30), "ma60": quantize_score(ma60)},
         description="30d MA above 60d MA indicates miner recovery." if score > 0 else "Miner capitulation in progress."
     )

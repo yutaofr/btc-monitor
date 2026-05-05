@@ -53,6 +53,7 @@ def run_evaluation(args):
     cash_recommendation = cash_engine.evaluate(observations)
     
     # 3. TADR Engine V3.0 (Primary Path)
+    v3_state = None
     try:
         from src.monitoring.correlation_engine import CorrelationEngine, CorrelationContext
         
@@ -85,6 +86,8 @@ def run_evaluation(args):
         v3_report = build_advisory_report(v3_recommendation, state=v3_state, current_price=curr_price)
     except Exception as e:
         v3_report = f"\n### 🚨 TADR V3.0 EXECUTION ERROR\nFailed to compute V3 decision: {str(e)}\n"
+        from src.strategy.factor_models import Recommendation, Action
+        v3_recommendation = Recommendation(action=Action.HOLD.value, confidence=0, summary=f"Error: {str(e)}")
 
     # 4. Output Comparison
     print("\n" + "="*50)
@@ -98,7 +101,6 @@ def run_evaluation(args):
     print(f"Cash: {cash_recommendation.action} ({cash_recommendation.confidence}%)")
     print("-"*30 + "\n")
     
-    
     # 5. Discord Notification (Side Effect)
     if getattr(args, "notify_discord", False):
         webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
@@ -108,12 +110,41 @@ def run_evaluation(args):
         else:
             print(f"[WARNING] --notify-discord flag set but DISCORD_WEBHOOK_URL env var is missing.")
 
+    # 6. JSON Output (Optional)
+    if getattr(args, "json", False):
+        import json
+        from dataclasses import asdict
+        
+        output_data = {
+            "timestamp": datetime.now().isoformat(),
+            "raw_results": [asdict(res) for res in raw_results],
+            "v3_recommendation": asdict(v3_recommendation),
+            "v3_state": asdict(v3_state) if v3_state else None,
+            "legacy": {
+                "pos": asdict(pos_recommendation),
+                "cash": asdict(cash_recommendation)
+            }
+        }
+        
+        json_str = json.dumps(output_data, indent=2, default=str)
+        if getattr(args, "output_dir", None):
+            os.makedirs(args.output_dir, exist_ok=True)
+            output_path = os.path.join(args.output_dir, "weekly_report.json")
+            with open(output_path, "w") as f:
+                f.write(json_str)
+            print(f"[{datetime.now().isoformat()}] JSON report saved to {output_path}")
+        else:
+            print("\n--- RAW JSON OUTPUT ---")
+            print(json_str)
+
     print(f"[{datetime.now().isoformat()}] Cycle Complete.")
 
 def main():
     parser = argparse.ArgumentParser(description="BTC Monitor V3.0 (TADR) Entry Point")
     parser.add_argument("--now", action="store_true", help="Execute immediately")
     parser.add_argument("--notify-discord", action="store_true", help="Send signal to Discord")
+    parser.add_argument("--json", action="store_true", help="Output raw results in JSON format")
+    parser.add_argument("--output-dir", type=str, help="Directory to save the JSON output")
     args = parser.parse_args()
     run_evaluation(args)
 

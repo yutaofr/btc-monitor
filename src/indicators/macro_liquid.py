@@ -2,6 +2,7 @@ import pandas as pd
 from datetime import datetime, timezone
 from src.fetchers.fred_fetcher import FredFetcher
 from src.indicators.base import IndicatorResult
+from src.strategy.factor_utils import quantize_score
 
 class MacroIndicator:
     def __init__(self, fetcher=None):
@@ -35,8 +36,8 @@ class MacroIndicator:
             
         return IndicatorResult(
             name="Net_Liquidity",
-            score=score,
-            details={"change_pct": round(change_pct, 4), "current": current_liq},
+            score=quantize_score(score),
+            details={"change_pct": quantize_score(change_pct), "current": current_liq},
             description=f"Liquidity is {'expanding' if score > 0 else 'contracting'}",
             timestamp=datetime.now(timezone.utc)
         )
@@ -65,8 +66,8 @@ class MacroIndicator:
             
         return IndicatorResult(
             name="Yields",
-            score=score,
-            details={"current": yields.iloc[-1], "sma30": sma30, "sma90": sma90},
+            score=quantize_score(score),
+            details={"current": yields.iloc[-1], "sma30": quantize_score(sma30), "sma90": quantize_score(sma90)},
             description=f"Yields are in a {desc}",
             timestamp=datetime.now(timezone.utc)
         )
@@ -95,8 +96,8 @@ class MacroIndicator:
             
         return IndicatorResult(
             name="DXY_Regime",
-            score=score,
-            details={"current": dxy.iloc[-1], "sma30": sma30, "sma90": sma90},
+            score=quantize_score(score),
+            details={"current": dxy.iloc[-1], "sma30": quantize_score(sma30), "sma90": quantize_score(sma90)},
             description=f"DXY is in a {desc}",
             timestamp=datetime.now(timezone.utc)
         )
