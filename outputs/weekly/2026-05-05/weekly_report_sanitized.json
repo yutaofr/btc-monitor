@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-05-05T22:21:58.890610",
+  "timestamp": "2026-05-05T22:33:21.245143",
   "v3_recommendation": {
     "action": "ADD",
     "confidence": 66,
@@ -16,12 +16,12 @@
       "Yields",
       "DXY_Regime"
     ],
-    "summary": "TADR V3: Target Allocation 54.2%. Confidence 66.7%."
+    "summary": "TADR V3: Target Allocation 54.3%. Confidence 66.7%."
   },
   "v3_state": {
-    "strategic_score": 1.48477523,
-    "confidence": 0.66686168,
-    "target_allocation": 0.5424643,
+    "strategic_score": 1.48625473,
+    "confidence": 0.66697554,
+    "target_allocation": 0.54261034,
     "regime_labels": [
       "Neutral"
     ],
@@ -67,7 +67,7 @@
     },
     {
       "name": "EMA21_Weekly",
-      "score": 2.75072721,
+      "score": 2.7728457,
       "is_valid": true
     },
     {
@@ -118,17 +118,17 @@
     {
       "name": "Production_Cost",
       "score": 2.0,
-      "is_valid": false
+      "is_valid": true
     },
     {
       "name": "Options_Wall",
       "score": 2.0,
-      "is_valid": false
+      "is_valid": true
     },
     {
       "name": "ETF_Flow",
       "score": 0,
-      "is_valid": false
+      "is_valid": true
     }
   ]
 }

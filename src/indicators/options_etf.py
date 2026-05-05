@@ -148,7 +148,7 @@ class OptionsETFIndicator:
             weight=result.weight,
             details=details,
             description=description,
-            is_valid=False,
+            is_valid=result.is_valid,
             timestamp=result.timestamp or datetime.now(timezone.utc)
         )
 
