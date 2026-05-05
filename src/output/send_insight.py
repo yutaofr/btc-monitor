@@ -2,7 +2,37 @@ import argparse
 import os
 import sys
 import json
-from src.output.discord_notifier import send_discord_signal
+import urllib.request
+from datetime import datetime
+
+def post_to_discord(webhook_url, content, username="BTC Monitor AI"):
+    """Sends a raw text/markdown message to Discord via webhook."""
+    # Discord content limit is 2000 chars. We'll truncate if necessary.
+    if len(content) > 1900:
+        content = content[:1900] + "\n... (truncated)"
+        
+    payload = {
+        "content": content,
+        "username": username,
+        "avatar_url": "https://bitcoin.org/img/icons/opengraph.png"
+    }
+    
+    data = json.dumps(payload).encode('utf-8')
+    req = urllib.request.Request(
+        webhook_url, 
+        data=data, 
+        headers={
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0'
+        }
+    )
+    
+    try:
+        with urllib.request.urlopen(req) as res:
+            return res.getcode()
+    except Exception as e:
+        print(f"[ERROR] Discord post failed: {e}")
+        return None
 
 def main():
     parser = argparse.ArgumentParser(description="Discord Insight Dispatcher")
@@ -27,15 +57,24 @@ def main():
         with open(args.input, 'r') as f:
             content = f.read()
             
-        # For MVP, we'll just print it or send a simplified notification
-        # In a real impl, we'd use discord_notifier to send a rich embed with the MD content
-        print(f"Sending Insight to Discord: {args.input}")
-        # Placeholder for real discord call (since send_discord_signal expects Recommendation object)
-        # We might need to extend discord_notifier.py to handle raw Markdown.
+        print(f"[{datetime.now().isoformat()}] Sending Insight to Discord...")
+        post_to_discord(webhook_url, content)
         
     elif args.mode == "fallback_error":
-        print(f"Sending Fallback Error to Discord: Stage={args.stage}, Message={args.message}")
-        # In a real impl, we'd extract a digest from validated-json and send it.
+        error_msg = f"## 🚨 BTC Monitor Service Alert\n**Stage**: {args.stage}\n**Error**: {args.message or 'Unknown error during execution.'}\n"
+        
+        # Try to append a summary if JSON exists
+        if args.validated_json and os.path.exists(args.validated_json):
+            try:
+                with open(args.validated_json, 'r') as f:
+                    data = json.load(f)
+                    v3 = data.get("v3_recommendation", {})
+                    error_msg += f"\n**Last Valid Recommendation**: {v3.get('action', 'N/A')} (Conf: {v3.get('confidence', '0')}%)"
+            except:
+                pass
+                
+        print(f"[{datetime.now().isoformat()}] Sending Fallback Error to Discord...")
+        post_to_discord(webhook_url, error_msg)
 
 if __name__ == "__main__":
     main()
