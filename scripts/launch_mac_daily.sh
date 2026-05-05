@@ -26,6 +26,7 @@ LOG_FILE="$PROJECT_ROOT/outputs/logs/mac_daily.log"
 
     # 4. Set Python Path and Environment
     export PYTHONPATH="${PYTHONPATH:-}:$PROJECT_ROOT"
+    export NON_INTERACTIVE=true
     
     # 5. Run Orchestration
     # Using --rerun to ensure we overwrite if multiple manual runs happened

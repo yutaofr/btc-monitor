@@ -70,21 +70,28 @@ python3 scripts/sanitize_weekly_report.py \
   --output "$RUN_DIR/weekly_report_sanitized.json"
 
 # Stage 3: Gemini Analysis
-echo "[$(date -u)] Stage 3: Gemini interpretation..."
 if command -v "$GEMINI_CLI" >/dev/null 2>&1; then
   if [ "$DRY_RUN" = true ]; then
     echo "[DRY RUN] Would run: $GEMINI_CLI analyze $RUN_DIR/weekly_report_sanitized.json"
     echo "# Dry Run Insight" > "$RUN_DIR/gemini_insight.md"
   else
-    # Simulated Gemini call (replace with real CLI command as per env)
-    $GEMINI_CLI analyze "$RUN_DIR/weekly_report_sanitized.json" > "$RUN_DIR/gemini_insight.md" || {
-      echo "[ERROR] Gemini analysis failed."
-      touch "$RUN_DIR/notified_error_gemini.ok"
-    }
+    # Stage 3: Gemini interpretation (Interactive Only)
+    # Skip if non-interactive to prevent hanging on tool prompts
+    # We check for a terminal AND allow an explicit override via environment
+    if [[ -t 0 && "${NON_INTERACTIVE:-false}" != "true" ]]; then
+        echo "[$(date -u)] Stage 3: Gemini interpretation..."
+        $GEMINI_CLI analyze "$RUN_DIR/weekly_report_sanitized.json" --raw-output --accept-raw-output-risk < /dev/null > "$RUN_DIR/gemini_insight.md" 2>/dev/null || {
+          echo "[WARNING] Gemini analysis failed. Using fallback."
+          echo "" > "$RUN_DIR/gemini_insight.md"
+        }
+    else
+        echo "[$(date -u)] Stage 3: Skipping Gemini (Non-interactive mode active)."
+        echo "" > "$RUN_DIR/gemini_insight.md"
+    fi
   fi
 else
   echo "[WARNING] Gemini CLI not found. Skipping Stage 3 interpretation."
-  echo "AI Interpretation unavailable (CLI missing)." > "$RUN_DIR/gemini_insight.md"
+  echo "" > "$RUN_DIR/gemini_insight.md"
 fi
 
 # Stage 4: Discord Push
@@ -93,7 +100,7 @@ if [ "$DRY_RUN" = true ]; then
   echo "[DRY RUN] Would run: python3 src/output/send_insight.py --mode insight --input $RUN_DIR/gemini_insight.md"
 else
   if [ -f "$RUN_DIR/gemini_insight.md" ]; then
-    python3 src/output/send_insight.py --mode insight --input "$RUN_DIR/gemini_insight.md"
+    python3 src/output/send_insight.py --mode insight --input "$RUN_DIR/gemini_insight.md" --validated-json "$RUN_DIR/weekly_report_sanitized.json"
     touch "$RUN_DIR/sent_discord.ok"
   else
     python3 src/output/send_insight.py --mode fallback_error --stage gemini --validated-json "$RUN_DIR/weekly_report_sanitized.json" --message "Gemini analysis failed or was skipped."

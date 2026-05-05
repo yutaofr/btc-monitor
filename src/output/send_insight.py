@@ -34,6 +34,35 @@ def post_to_discord(webhook_url, content, username="BTC Monitor AI"):
         print(f"[ERROR] Discord post failed: {e}")
         return None
 
+def generate_raw_digest(json_path):
+    """Generates a human-readable markdown summary from the sanitized JSON."""
+    try:
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+            
+        v3 = data.get("v3_recommendation", {})
+        state = data.get("v3_state", {})
+        
+        action = v3.get("action", "N/A")
+        confidence = v3.get("confidence", 0)
+        allocation = state.get("target_allocation", 0)
+        regime = v3.get("strategic_regime", "N/A")
+        
+        emoji = "📈" if action == "ADD" else "📉" if action == "REDUCE" else "🛡️"
+        
+        digest = (
+            f"# {emoji} BTC Monitor Raw Signal: **{action}**\n"
+            f"**Target Allocation**: `{allocation:.1%}`\n"
+            f"**Confidence**: `{confidence}%`\n"
+            f"**Market Regime**: `{regime}`\n\n"
+            f"**Summary**: {v3.get('summary', 'N/A')}\n\n"
+            f"--- \n"
+            f"*AI interpretation skipped due to environment constraints.*"
+        )
+        return digest
+    except Exception as e:
+        return f"⚠️ **BTC Monitor**: Error generating raw digest from JSON: {e}"
+
 def main():
     parser = argparse.ArgumentParser(description="Discord Insight Dispatcher")
     parser.add_argument("--mode", choices=["insight", "fallback_error"], required=True)
@@ -55,7 +84,15 @@ def main():
             sys.exit(1)
             
         with open(args.input, 'r') as f:
-            content = f.read()
+            content = f.read().strip()
+            
+        # Fallback to Raw Digest if insight is empty (e.g. Gemini failed in background)
+        if not content:
+            print(f"[{datetime.now().isoformat()}] Insight is empty. Falling back to Raw Digest.")
+            if args.validated_json and os.path.exists(args.validated_json):
+                content = generate_raw_digest(args.validated_json)
+            else:
+                content = "⚠️ **BTC Monitor Report**: AI interpretation unavailable and no sanitized data found."
             
         print(f"[{datetime.now().isoformat()}] Sending Insight to Discord...")
         post_to_discord(webhook_url, content)
