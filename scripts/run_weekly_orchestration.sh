@@ -12,6 +12,7 @@ TEMP_BASE="$PROJECT_ROOT/.temp/weekly"
 WEEK_END=$(date +%Y-%m-%d) # Default to today, overridden by --week-end
 DRY_RUN=false
 RERUN=false
+SKIP_AI=false
 GEMINI_CLI="gemini" # Customizable
 
 # --- Parse Arguments ---
@@ -27,6 +28,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --rerun)
       RERUN=true
+      shift
+      ;;
+    --skip-ai)
+      SKIP_AI=true
       shift
       ;;
     *)
@@ -76,9 +81,8 @@ if command -v "$GEMINI_CLI" >/dev/null 2>&1; then
     echo "# Dry Run Insight" > "$RUN_DIR/gemini_insight.md"
   else
     # Stage 3: Gemini interpretation (Interactive Only)
-    # Skip if non-interactive to prevent hanging on tool prompts
-    # We check for a terminal AND allow an explicit override via environment
-    if [[ -t 0 && "${NON_INTERACTIVE:-false}" != "true" ]]; then
+    # Skip if non-interactive or explicitly requested to prevent hanging
+    if [[ -t 0 && "${NON_INTERACTIVE:-false}" != "true" && "$SKIP_AI" != "true" ]]; then
         echo "[$(date -u)] Stage 3: Gemini interpretation..."
         $GEMINI_CLI analyze "$RUN_DIR/weekly_report_sanitized.json" --raw-output --accept-raw-output-risk < /dev/null > "$RUN_DIR/gemini_insight.md" 2>/dev/null || {
           echo "[WARNING] Gemini analysis failed. Using fallback."
