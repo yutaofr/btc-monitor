@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-05-05T22:21:58.890610",
+  "timestamp": "2026-05-05T22:33:21.245143",
   "raw_results": [
     {
       "name": "200WMA",
@@ -12,19 +12,19 @@
       },
       "description": "Price is 1.30x of 200WMA",
       "is_valid": true,
-      "timestamp": "2026-05-05 20:21:50.573598+00:00"
+      "timestamp": "2026-05-05 20:33:12.600737+00:00"
     },
     {
       "name": "Pi_Cycle",
       "score": 5.0,
       "weight": 1.0,
       "details": {
-        "111dma": 73979.90333333334,
-        "350dma_x2": 191815.3192
+        "111dma": 73980.76918918919,
+        "350dma_x2": 191815.8684
       },
       "description": "Pi Cycle Top gap is healthy",
       "is_valid": true,
-      "timestamp": "2026-05-05 20:21:50.829932+00:00"
+      "timestamp": "2026-05-05 20:33:12.858452+00:00"
     },
     {
       "name": "RSI_Div",
@@ -36,33 +36,33 @@
       },
       "description": "No RSI Divergence",
       "is_valid": true,
-      "timestamp": "2026-05-05 20:21:51.079363+00:00"
+      "timestamp": "2026-05-05 20:33:13.095796+00:00"
     },
     {
       "name": "Short_Term_Stretch",
       "score": 0.0,
       "weight": 1.0,
       "details": {
-        "current": 81571.41,
-        "ema_26w": 77661.3742180289,
-        "ratio": 1.0503472391692936
+        "current": 81667.51,
+        "ema_26w": 77662.55568686107,
+        "ratio": 1.0515686649469416
       },
       "description": "Price stretch vs 26w EMA is 1.05x",
       "is_valid": true,
-      "timestamp": "2026-05-05 20:21:51.327126+00:00"
+      "timestamp": "2026-05-05 20:33:13.336185+00:00"
     },
     {
       "name": "EMA21_Weekly",
-      "score": 2.75072721,
+      "score": 2.7728457,
       "weight": 1.0,
       "details": {
-        "price": 81571.41,
-        "ema21": 78620.29042991623,
-        "ratio": 1.037536360574939
+        "price": 81667.51,
+        "ema21": 78629.10185412155,
+        "ratio": 1.038642284780456
       },
       "description": "Price is 1.04x of 21w-EMA",
       "is_valid": true,
-      "timestamp": "2026-05-05 20:21:51.568653+00:00"
+      "timestamp": "2026-05-05 20:33:13.572388+00:00"
     },
     {
       "name": "RSI_Weekly",
@@ -73,7 +73,7 @@
       },
       "description": "Weekly RSI is 41.5",
       "is_valid": true,
-      "timestamp": "2026-05-05 20:21:51.811769+00:00"
+      "timestamp": "2026-05-05 20:33:13.808437+00:00"
     },
     {
       "name": "Net_Liquidity",
@@ -85,7 +85,7 @@
       },
       "description": "Liquidity is expanding",
       "is_valid": true,
-      "timestamp": "2026-05-05 20:21:52.733700+00:00"
+      "timestamp": "2026-05-05 20:33:14.891458+00:00"
     },
     {
       "name": "Yields",
@@ -98,7 +98,7 @@
       },
       "description": "Yields are in a rising regime (30d > 90d SMA)",
       "is_valid": true,
-      "timestamp": "2026-05-05 20:21:53.293424+00:00"
+      "timestamp": "2026-05-05 20:33:15.553045+00:00"
     },
     {
       "name": "DXY_Regime",
@@ -111,7 +111,7 @@
       },
       "description": "DXY is in a rising regime (30d > 90d SMA)",
       "is_valid": true,
-      "timestamp": "2026-05-05 20:21:53.622722+00:00"
+      "timestamp": "2026-05-05 20:33:15.955196+00:00"
     },
     {
       "name": "FearGreed",
@@ -122,7 +122,7 @@
       },
       "description": "Fear & Greed Index is at 50 (Neutral)",
       "is_valid": true,
-      "timestamp": "2026-05-05 20:21:53.956751+00:00"
+      "timestamp": "2026-05-05 20:33:16.286173+00:00"
     },
     {
       "name": "Cycle_Pos",
@@ -134,7 +134,7 @@
       },
       "description": "Market is 37.7% off from ATH",
       "is_valid": true,
-      "timestamp": "2026-05-05 20:21:55.913197+00:00"
+      "timestamp": "2026-05-05 20:33:18.163000+00:00"
     },
     {
       "name": "Hash_Ribbon",
@@ -158,7 +158,7 @@
       },
       "description": "Price is 0.92x of 2-year cost basis proxy",
       "is_valid": true,
-      "timestamp": "2026-05-05 20:21:56.208094+00:00"
+      "timestamp": "2026-05-05 20:33:18.489034+00:00"
     },
     {
       "name": "Puell_Multiple",
@@ -170,7 +170,7 @@
       },
       "description": "Puell Multiple is 0.79 (low revenue relative to year avg)",
       "is_valid": true,
-      "timestamp": "2026-05-05 20:21:56.344874+00:00"
+      "timestamp": "2026-05-05 20:33:18.624403+00:00"
     },
     {
       "name": "Production_Cost",
@@ -180,7 +180,7 @@
         "research_only": true
       },
       "description": "Research-only: network fundamental floor placeholder is surfaced for reference",
-      "is_valid": false,
+      "is_valid": true,
       "timestamp": null
     },
     {
@@ -195,8 +195,8 @@
         "research_only": true
       },
       "description": "Research-only: BTC neutral distance from Put Wall at 70000.0 (2026-05-29)",
-      "is_valid": false,
-      "timestamp": "2026-05-05 20:21:56.542942+00:00"
+      "is_valid": true,
+      "timestamp": "2026-05-05 20:33:18.868236+00:00"
     },
     {
       "name": "ETF_Flow",
@@ -208,8 +208,8 @@
         "research_only": true
       },
       "description": "Research-only: ETF Price: 46.28, Vol: 37,096,214",
-      "is_valid": false,
-      "timestamp": "2026-05-05 20:21:58.654108+00:00"
+      "is_valid": true,
+      "timestamp": "2026-05-05 20:33:21.008661+00:00"
     }
   ],
   "v3_recommendation": {
@@ -239,16 +239,16 @@
       "Options_Wall",
       "ETF_Flow"
     ],
-    "summary": "TADR V3: Target Allocation 54.2%. Confidence 66.7%."
+    "summary": "TADR V3: Target Allocation 54.3%. Confidence 66.7%."
   },
   "v3_state": {
-    "computation_timestamp_ns": 1778012518655617000,
+    "computation_timestamp_ns": 1778013201011241000,
     "raw_scores_map": {
       "200WMA": 4.03187883,
       "Pi_Cycle": 5.0,
       "RSI_Div": 0.0,
       "Short_Term_Stretch": 0.0,
-      "EMA21_Weekly": 2.75072721,
+      "EMA21_Weekly": 2.7728457,
       "RSI_Weekly": 4.26656383,
       "Net_Liquidity": 2.0,
       "Yields": -6.0,
@@ -267,7 +267,7 @@
       "Pi_Cycle": 5.0,
       "RSI_Div": 0.0,
       "Short_Term_Stretch": 0.0,
-      "EMA21_Weekly": 2.75072721,
+      "EMA21_Weekly": 2.7728457,
       "RSI_Weekly": 4.26656383,
       "Net_Liquidity": 2.5,
       "Yields": -6.0,
@@ -276,7 +276,10 @@
       "Cycle_Pos": -0.75245651,
       "Hash_Ribbon": -2.0,
       "MVRV_Proxy": 12.0,
-      "Puell_Multiple": 6.40067632
+      "Puell_Multiple": 6.40067632,
+      "Production_Cost": 0.0,
+      "Options_Wall": 0.0,
+      "ETF_Flow": 0.0
     },
     "redundancy_multipliers": {
       "200WMA": 1.0,
@@ -292,7 +295,10 @@
       "Cycle_Pos": 1.0,
       "Hash_Ribbon": 1.0,
       "MVRV_Proxy": 1.0,
-      "Puell_Multiple": 1.0
+      "Puell_Multiple": 1.0,
+      "Production_Cost": 1.0,
+      "Options_Wall": 1.0,
+      "ETF_Flow": 1.0
     },
     "correlation_matrix_snapshot": {
       "Net_Liquidity": 0.5,
@@ -301,16 +307,16 @@
     "gate_status": {
       "MVRV_Proxy": {
         "is_active": false,
-        "last_observed_at": "2026-05-05 20:21:56.208094+00:00"
+        "last_observed_at": "2026-05-05 20:33:18.489034+00:00"
       },
       "Net_Liquidity": {
         "is_active": false,
-        "last_observed_at": "2026-05-05 20:21:52.733700+00:00"
+        "last_observed_at": "2026-05-05 20:33:14.891458+00:00"
       }
     },
-    "strategic_score": 1.48477523,
-    "confidence": 0.66686168,
-    "target_allocation": 0.5424643,
+    "strategic_score": 1.48625473,
+    "confidence": 0.66697554,
+    "target_allocation": 0.54261034,
     "regime_labels": [
       "Neutral"
     ],

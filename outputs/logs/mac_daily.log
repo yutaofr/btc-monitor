@@ -811,3 +811,74 @@ Sanitization complete. Clean data saved to /Users/weizhang/w/btc-monitor/outputs
 [2026-05-05T22:22:19.639629] Sending Insight to Discord...
 [Tue May  5 20:22:19 UTC 2026] Orchestration complete for 2026-05-05.
 [Tue May  5 20:22:19 UTC 2026] LAUNCH_MAC_DAILY: Success
+----------------------------------------------------------------
+[Tue May  5 20:33:09 UTC 2026] LAUNCH_MAC_DAILY: Start
+[Tue May  5 20:33:09 UTC 2026] Loading .env file...
+[Tue May  5 20:33:09 UTC 2026] Triggering run_weekly_orchestration.sh...
+[Tue May  5 20:33:09 UTC 2026] Starting orchestration for Week End: 2026-05-05
+[Tue May  5 20:33:09 UTC 2026] Stage 1: Generating raw report...
+[2026-05-05T22:33:10.639812] Starting Market Evaluation Snapshot...
+
+==================================================
+      BTC MONITOR V3.0 INTEGRATED ADVISORY
+==================================================
+
+**CURRENT PRICE**: $81,675.67
+
+# BTC Monitor TADR V3 Advisory: **ADD**
+**Action:** `ADD`
+## 📊 Strategic Metrics
+**Summary:** TADR V3: Target Allocation 54.3%. Confidence 66.7%.
+**Confidence:** `66`
+**Target Allocation:** **54.3%**
+**Regime:** `Neutral`
+**Strategic Regime:** `Neutral`
+**Tactical State:** `CONFIRMED`
+
+| Metric | Value |
+| :--- | :--- |
+| **Computation Score** | `1.48625473` |
+| **Confidence Level** | `0.67` |
+| **Market Regime** | `Neutral` |
+
+## 🔍 Factor Evidence Details
+| Factor | Status | Raw Score | Multiplier |
+| :--- | :--- | :--- | :--- |
+| 200WMA | ✅ OK | 4.0319 | 1.0000 |
+| Pi_Cycle | ✅ OK | 5.0000 | 1.0000 |
+| RSI_Div | ✅ OK | 0.0000 | 1.0000 |
+| Short_Term_Stretch | ✅ OK | 0.0000 | 1.0000 |
+| EMA21_Weekly | ✅ OK | 2.7728 | 1.0000 |
+| RSI_Weekly | ✅ OK | 4.2666 | 1.0000 |
+| Net_Liquidity | ✅ OK | 2.0000 | 1.0000 |
+| Yields | ✅ OK | -6.0000 | 1.0000 |
+| DXY_Regime | ✅ OK | -6.0000 | 1.0000 |
+| FearGreed | ✅ OK | 0.0000 | 1.0000 |
+| Cycle_Pos | ✅ OK | -0.7525 | 1.0000 |
+| Hash_Ribbon | ✅ OK | -2.0000 | 1.0000 |
+| MVRV_Proxy | ✅ OK | 8.0000 | 1.0000 |
+| Puell_Multiple | ✅ OK | 5.3339 | 1.0000 |
+| Production_Cost | ✅ OK | 2.0000 | 1.0000 |
+| Options_Wall | ✅ OK | 2.0000 | 1.0000 |
+| ETF_Flow | ✅ OK | 0.0000 | 1.0000 |
+
+---
+**Supporting Factors:** 200WMA, Pi_Cycle, RSI_Weekly, MVRV_Proxy, Puell_Multiple
+### 🧪 Engineering Metadata (Shadow Parity)
+- **Computation ID (NS)**: `1778013201011241000`
+
+------------------------------
+LEGACY (V2) SUMMARY:
+Position: HOLD (50%)
+Cash: WAIT (50%)
+------------------------------
+
+[2026-05-05T22:33:21.246414] JSON report saved to /Users/weizhang/w/btc-monitor/outputs/weekly/2026-05-05/weekly_report.json
+[2026-05-05T22:33:21.246424] Cycle Complete.
+[Tue May  5 20:33:21 UTC 2026] Stage 2: Sanitizing data...
+Sanitization complete. Clean data saved to /Users/weizhang/w/btc-monitor/outputs/weekly/2026-05-05/weekly_report_sanitized.json
+[Tue May  5 20:33:21 UTC 2026] Stage 3: Gemini interpretation...
+[Tue May  5 20:34:07 UTC 2026] Stage 4: Discord delivery...
+[2026-05-05T22:34:07.671936] Sending Insight to Discord...
+[Tue May  5 20:34:08 UTC 2026] Orchestration complete for 2026-05-05.
+[Tue May  5 20:34:08 UTC 2026] LAUNCH_MAC_DAILY: Success

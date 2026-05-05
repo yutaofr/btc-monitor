@@ -1,18 +1,24 @@
-The analysis of the `weekly_report_sanitized.json` for **May 5, 2026**, reveals a market in a **Neutral Strategic Regime** with a **Confirmed Tactical State**, leading to an **ADD** recommendation.
+The analysis of the **BTC Monitor Weekly Report (2026-05-05)** reveals a constructive but macro-challenged environment for Bitcoin. The system has issued a **V3 ADD** recommendation with a **54.3% Target Allocation** and **66.7% Confidence**, indicating a disciplined accumulation phase.
 
-### **Key Performance Indicators**
-*   **V3 Recommendation:** `ADD`
-*   **Target Allocation:** 54.2%
-*   **Confidence Score:** 66.7%
-*   **Strategic Regime:** Neutral
-*   **Tactical State:** CONFIRMED
+### **Core Signal Analysis**
+*   **Directional Bias**: **ADD**. The system suggests increasing exposure, supported by a `Strategic Score` of **1.49**.
+*   **Confidence Level**: **66.7% (Confirmed)**. This is driven by high alignment among on-chain and long-term technical factors, despite significant macro headwinds.
+*   **Target Allocation**: **54.3%**. This represents a slight overweight position relative to a neutral baseline, reflecting a "lean-in" strategy without aggressive overexposure.
 
-### **Market Evidence Analysis**
-*   **Bullish Drivers (Supporting Factors):** Strong technical and valuation support from the **200WMA**, **Pi Cycle**, and **RSI Weekly**. On-chain metrics like **MVRV Proxy** (Score: 8.0) and **Puell Multiple** (Score: 5.33) suggest significant fundamental value.
-*   **Bearish Headwinds (Conflicting Factors):** Macro environment remains restrictive, with **Yields** and **DXY Regime** both scoring **-6.0**, indicating a strong negative correlation impact from the dollar and treasury rates.
-*   **System Health:**
-    *   **Fail-Closed Status:** The system remains operational. Although `Production_Cost`, `Options_Wall`, and `ETF_Flow` are marked `is_valid: false`, they are likely research-only or non-critical, as the `ProbabilisticConfidenceScorer` has not triggered a system lock.
-    *   **Gate Activity:** Both `MVRV_Proxy` and `Net_Liquidity` gates are currently **inactive**, meaning they are not currently overriding the primary scoring logic.
+### **Factor Breakdown**
+1.  **Valuation & On-Chain (High Support)**:
+    *   **MVRV Proxy (8.0)** and **Puell Multiple (5.33)** indicate that Bitcoin is in a high-value/low-risk accumulation zone from a fundamental perspective.
+    *   **Pi Cycle (5.0)** and **200WMA (4.03)** provide strong floor-level technical support.
+2.  **Macro & Liquidity (Significant Headwinds)**:
+    *   **Yields (-6.0)** and **DXY Regime (-6.0)** are the primary detractors. Rising interest rates and a strengthening US Dollar create a hostile environment for risk assets, preventing a more aggressive allocation.
+    *   **Net Liquidity (2.0)** remains slightly positive, providing a thin buffer against broader macro tightening.
+3.  **Sentiment & Momentum (Neutral)**:
+    *   **Fear & Greed (0.0)** and **Short-Term Stretch (0.0)** suggest a "reset" in market psychology, with no immediate signs of overheating or panic.
 
-### **Legacy Comparison**
-The legacy engines (`PositionAdvisoryEngine` and `IncrementalBuyEngine`) are more conservative, both issuing `HOLD`/`WAIT` signals with neutral 50% confidence, highlighting the V3 engine's increased sensitivity to the current valuation-driven opportunity.
+### **System Health & Integrity**
+*   **Circuit Breaker**: **INACTIVE**. All critical factors (`MVRV_Proxy`, `Net_Liquidity`) are reporting valid data.
+*   **Gate Status**: No gates are currently active, meaning the signal is unsuppressed by the Fail-Closed logic.
+*   **V3 vs. Legacy Divergence**: The Legacy system remains at a neutral **HOLD/WAIT (50%)**, whereas the V3 TADR Engine is more proactive in identifying value. This highlights the V3's improved sensitivity to the convergence of on-chain value and price floors.
+
+### **Strategic Insight**
+The current regime is **Neutral** with a tactical confirmation to **ADD**. The strategy effectively advocates for "Accumulating the Macro Wall of Worry." While the dollar and yields are aggressive headwinds, the underlying valuation metrics (MVRV, Puell) and long-term price supports (200WMA) are deemed strong enough to justify a moderate increase in position size.
