@@ -5,9 +5,13 @@ services:
       - .env
     volumes:
       - ./data:/app/data
+      - ./outputs:/app/outputs
 
   tests:
     build: .
     env_file:
       - .env
-    command: ["sh", "-c", "pytest tests/unit tests/e2e && python3 tests/parity/shadow_parity_100_samples.py"]
+    volumes:
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+    command: ["sh", "-c", "pytest tests/unit tests/e2e tests/parity/shadow_parity_100_samples.py"]

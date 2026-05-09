@@ -29,7 +29,14 @@ def post_to_discord(webhook_url, content, username="BTC Monitor AI"):
     
     try:
         with urllib.request.urlopen(req) as res:
-            return res.getcode()
+            code = res.getcode()
+            body = res.read().decode('utf-8')
+            print(f"[INFO] Discord responded with code: {code}, body: {body}")
+            return code
+    except urllib.error.HTTPError as e:
+        print(f"[ERROR] Discord HTTP Error: {e.code} - {e.reason}")
+        print(f"[ERROR] Response body: {e.read().decode('utf-8')}")
+        return e.code
     except Exception as e:
         print(f"[ERROR] Discord post failed: {e}")
         return None

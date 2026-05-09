@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# 0. Ensure PATH includes common Homebrew and local binary paths for launchd
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 # 1. Resolve Project Root
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"

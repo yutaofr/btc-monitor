@@ -13,7 +13,7 @@ RUN_DATE=$(date +%Y-%m-%d)
 DRY_RUN=false
 RERUN=false
 GEMINI_CLI="gemini" # Customizable
-PROMPT_FILE="$PROJECT_ROOT/src/strategy/ai_deduction_prompt.md"
+PROMPT_FILE="src/strategy/ai_deduction_prompt.md"
 
 # --- Date Context ---
 DOW=$(date +%u) # 1=Mon, 5=Fri
@@ -47,7 +47,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-RUN_DIR="$OUTPUT_BASE/$RUN_DATE"
+RUN_DIR_REL="outputs/weekly/$RUN_DATE"
+RUN_DIR="$PROJECT_ROOT/$RUN_DIR_REL"
 LOCK_FILE="$RUN_DIR/.run_lock"
 
 echo "[$(date -u)] Starting orchestration for: $RUN_DATE (Mode: $AI_MODE)"
@@ -70,14 +71,14 @@ if [ "$DRY_RUN" = true ]; then
   echo "[DRY RUN] Would run: python3 src/main.py --json --output-dir $RUN_DIR"
   echo '{"timestamp": "'$(date -u)'", "raw_results": [], "v3_recommendation": {"action": "HOLD", "confidence": 0, "summary": "DRY RUN MOCK"}}' > "$RUN_DIR/weekly_report.json"
 else
-  python3 src/main.py --json --output-dir "$RUN_DIR"
+  docker compose run --rm app python3 src/main.py --json --output-dir "$RUN_DIR_REL"
 fi
 
 # Stage 2: Sanitize Data
 echo "[$(date -u)] Stage 2: Sanitizing data..."
-python3 scripts/sanitize_weekly_report.py \
-  --input "$RUN_DIR/weekly_report.json" \
-  --output "$RUN_DIR/weekly_report_sanitized.json"
+docker compose run --rm app python3 scripts/sanitize_weekly_report.py \
+  --input "$RUN_DIR_REL/weekly_report.json" \
+  --output "$RUN_DIR_REL/weekly_report_sanitized.json"
 
 # Stage 3: Gemini AI Deduction (Search + Synthesis)
 if command -v "$GEMINI_CLI" >/dev/null 2>&1; then
@@ -107,10 +108,10 @@ if [ "$DRY_RUN" = true ]; then
   echo "[DRY RUN] Would run: python3 src/output/send_insight.py --mode insight --input $RUN_DIR/gemini_insight.md"
 else
   if [ -s "$RUN_DIR/gemini_insight.md" ]; then
-    python3 src/output/send_insight.py --mode insight --input "$RUN_DIR/gemini_insight.md" --validated-json "$RUN_DIR/weekly_report_sanitized.json"
+    docker compose run --rm app python3 src/output/send_insight.py --mode insight --input "$RUN_DIR_REL/gemini_insight.md" --validated-json "$RUN_DIR_REL/weekly_report_sanitized.json"
     touch "$RUN_DIR/sent_discord.ok"
   else
-    python3 src/output/send_insight.py --mode fallback_error --stage gemini --validated-json "$RUN_DIR/weekly_report_sanitized.json" --message "Gemini analysis failed or was skipped."
+    docker compose run --rm app python3 src/output/send_insight.py --mode fallback_error --stage gemini --validated-json "$RUN_DIR_REL/weekly_report_sanitized.json" --message "Gemini analysis failed or was skipped."
   fi
 fi
 
