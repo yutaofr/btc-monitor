@@ -64,6 +64,10 @@ mkdir -p "$RUN_DIR"
 touch "$LOCK_FILE"
 trap 'rm -f "$LOCK_FILE"' EXIT
 
+if [ "$RERUN" = true ] && [ "$DRY_RUN" = false ]; then
+  rm -f "$RUN_DIR/sent_discord.ok"
+fi
+
 # --- Execution Pipeline ---
 
 # Stage 1: Generate Raw JSON

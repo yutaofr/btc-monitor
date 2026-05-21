@@ -39,3 +39,13 @@ def test_orchestrator_touches_sent_marker_only_after_successful_send():
 
     assert send_index < touch_index
     assert "docker compose run --rm app python3 src/output/send_insight.py --mode insight" in text
+
+
+def test_orchestrator_clears_stale_sent_marker_on_real_rerun():
+    text = script_text()
+
+    clear_index = text.index('rm -f "$RUN_DIR/sent_discord.ok"')
+    send_index = text.index("send_insight.py --mode insight")
+
+    assert '[ "$RERUN" = true ] && [ "$DRY_RUN" = false ]' in text
+    assert clear_index < send_index
