@@ -6,7 +6,7 @@ import sys
 def sanitize(data):
     """
     Strict allowlist-based sanitization for weekly reports.
-    Removes all sensitive data (secrets, paths, identifiers) before passing to Gemini.
+    Removes all sensitive data (secrets, paths, identifiers) before AI deduction.
     """
     sanitized = {
         "timestamp": data.get("timestamp"),
@@ -68,7 +68,7 @@ def sanitize(data):
     return sanitized
 
 def main():
-    parser = argparse.ArgumentParser(description="Sanitize weekly reports for AI interpretation")
+    parser = argparse.ArgumentParser(description="Sanitize weekly reports for AI deduction")
     parser.add_argument("--input", required=True, help="Path to raw weekly_report.json")
     parser.add_argument("--output", required=True, help="Path to save sanitized JSON")
     args = parser.parse_args()

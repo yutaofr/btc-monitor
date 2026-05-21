@@ -157,7 +157,7 @@ def generate_raw_digest(json_path):
             f"- Position: `{legacy.get('pos', {}).get('action', 'N/A')}`\n"
             f"- Cash: `{legacy.get('cash', {}).get('action', 'N/A')}`\n\n"
             f"---\n"
-            f"*Note: AI interpretation skipped due to background environment. Using Raw Data fallback.*"
+            f"*Note: AI deduction skipped due to background environment. Using Raw Data fallback.*"
         )
         return digest
     except Exception as e:
@@ -166,7 +166,7 @@ def generate_raw_digest(json_path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Discord Insight Dispatcher")
     parser.add_argument("--mode", choices=["insight", "fallback_error"], required=True)
-    parser.add_argument("--input", help="Path to gemini_insight.md (for insight mode)")
+    parser.add_argument("--input", help="Path to ai_insight.md (for insight mode)")
     parser.add_argument("--stage", help="Failing stage (for fallback_error mode)")
     parser.add_argument("--validated-json", help="Path to sanitized JSON (for fallback_error mode)")
     parser.add_argument("--message", help="Custom error message")
@@ -186,13 +186,13 @@ def main(argv=None):
         with open(args.input, 'r') as f:
             content = f.read().strip()
             
-        # Fallback to Raw Digest if insight is empty (e.g. Gemini failed in background)
+        # Fallback to Raw Digest if insight is empty.
         if not content:
             print(f"[{datetime.now().isoformat()}] Insight is empty. Falling back to Raw Digest.")
             if args.validated_json and os.path.exists(args.validated_json):
                 content = generate_raw_digest(args.validated_json)
             else:
-                content = "⚠️ **BTC Monitor Report**: AI interpretation unavailable and no sanitized data found."
+                content = "⚠️ **BTC Monitor Report**: AI deduction unavailable and no sanitized data found."
             
         print(f"[{datetime.now().isoformat()}] Sending Insight to Discord...")
         exit_code = send_content_to_discord(webhook_url, content)
