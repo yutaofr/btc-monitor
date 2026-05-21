@@ -5,12 +5,81 @@ import json
 import urllib.request
 from datetime import datetime
 
+
+DISCORD_MAX_CONTENT_BYTES = 1900
+
+
+def byte_len(text):
+    return len(text.encode("utf-8"))
+
+
+def hard_split_text(text, max_bytes):
+    chunks = []
+    current = []
+    current_bytes = 0
+    for char in text:
+        char_bytes = byte_len(char)
+        if current and current_bytes + char_bytes > max_bytes:
+            chunks.append("".join(current))
+            current = []
+            current_bytes = 0
+        current.append(char)
+        current_bytes += char_bytes
+    if current:
+        chunks.append("".join(current))
+    return chunks
+
+
+def split_discord_messages(content, max_bytes=DISCORD_MAX_CONTENT_BYTES):
+    if byte_len(content) <= max_bytes:
+        return [content]
+
+    chunks = []
+    current = ""
+    blocks = content.split("\n\n")
+
+    for index, block in enumerate(blocks):
+        piece = block if index == 0 else "\n\n" + block
+        if byte_len(piece) > max_bytes:
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.extend(hard_split_text(piece.lstrip("\n"), max_bytes))
+            continue
+
+        if current and byte_len(current + piece) > max_bytes:
+            chunks.append(current)
+            current = block
+        else:
+            current += piece
+
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def add_chunk_headers(chunks, title="BTC Monitor AI Report", max_bytes=DISCORD_MAX_CONTENT_BYTES):
+    if len(chunks) == 1:
+        return chunks
+
+    payloads = []
+    total = len(chunks)
+    for index, chunk in enumerate(chunks, start=1):
+        header = f"**{title} ({index}/{total})**\n"
+        budget = max_bytes - byte_len(header)
+        if byte_len(chunk) > budget:
+            split_chunks = hard_split_text(chunk, budget)
+            return add_chunk_headers(
+                chunks[: index - 1] + split_chunks + chunks[index:],
+                title=title,
+                max_bytes=max_bytes,
+            )
+        payloads.append(header + chunk)
+    return payloads
+
+
 def post_to_discord(webhook_url, content, username="BTC Monitor AI"):
     """Sends a raw text/markdown message to Discord via webhook."""
-    # Discord content limit is 2000 chars. We'll truncate if necessary.
-    if len(content) > 1900:
-        content = content[:1900] + "\n... (truncated)"
-        
     payload = {
         "content": content,
         "username": username,
@@ -40,6 +109,19 @@ def post_to_discord(webhook_url, content, username="BTC Monitor AI"):
     except Exception as e:
         print(f"[ERROR] Discord post failed: {e}")
         return None
+
+
+def send_content_to_discord(webhook_url, content, max_bytes=DISCORD_MAX_CONTENT_BYTES):
+    chunks = split_discord_messages(content, max_bytes=max_bytes)
+    payloads = add_chunk_headers(chunks, max_bytes=max_bytes)
+
+    for index, payload in enumerate(payloads, start=1):
+        code = post_to_discord(webhook_url, payload)
+        if code is None or code >= 300:
+            print(f"[ERROR] Discord chunk {index}/{len(payloads)} failed with code: {code}")
+            return 1
+    return 0
+
 
 def generate_raw_digest(json_path):
     """Generates a high-fidelity markdown summary from the sanitized JSON."""
@@ -75,21 +157,21 @@ def generate_raw_digest(json_path):
             f"- Position: `{legacy.get('pos', {}).get('action', 'N/A')}`\n"
             f"- Cash: `{legacy.get('cash', {}).get('action', 'N/A')}`\n\n"
             f"---\n"
-            f"*Note: AI interpretation skipped due to background environment. Using Raw Data fallback.*"
+            f"*Note: AI deduction skipped due to background environment. Using Raw Data fallback.*"
         )
         return digest
     except Exception as e:
         return f"⚠️ **BTC Monitor**: Error generating raw digest from JSON: {e}"
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description="Discord Insight Dispatcher")
     parser.add_argument("--mode", choices=["insight", "fallback_error"], required=True)
-    parser.add_argument("--input", help="Path to gemini_insight.md (for insight mode)")
+    parser.add_argument("--input", help="Path to ai_insight.md (for insight mode)")
     parser.add_argument("--stage", help="Failing stage (for fallback_error mode)")
     parser.add_argument("--validated-json", help="Path to sanitized JSON (for fallback_error mode)")
     parser.add_argument("--message", help="Custom error message")
     
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     
     webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
     if not webhook_url:
@@ -104,16 +186,17 @@ def main():
         with open(args.input, 'r') as f:
             content = f.read().strip()
             
-        # Fallback to Raw Digest if insight is empty (e.g. Gemini failed in background)
+        # Fallback to Raw Digest if insight is empty.
         if not content:
             print(f"[{datetime.now().isoformat()}] Insight is empty. Falling back to Raw Digest.")
             if args.validated_json and os.path.exists(args.validated_json):
                 content = generate_raw_digest(args.validated_json)
             else:
-                content = "⚠️ **BTC Monitor Report**: AI interpretation unavailable and no sanitized data found."
+                content = "⚠️ **BTC Monitor Report**: AI deduction unavailable and no sanitized data found."
             
         print(f"[{datetime.now().isoformat()}] Sending Insight to Discord...")
-        post_to_discord(webhook_url, content)
+        exit_code = send_content_to_discord(webhook_url, content)
+        sys.exit(exit_code)
         
     elif args.mode == "fallback_error":
         error_msg = f"## 🚨 BTC Monitor Service Alert\n**Stage**: {args.stage}\n**Error**: {args.message or 'Unknown error during execution.'}\n"
@@ -129,7 +212,8 @@ def main():
                 pass
                 
         print(f"[{datetime.now().isoformat()}] Sending Fallback Error to Discord...")
-        post_to_discord(webhook_url, error_msg)
+        exit_code = send_content_to_discord(webhook_url, error_msg)
+        sys.exit(exit_code)
 
 if __name__ == "__main__":
     main()

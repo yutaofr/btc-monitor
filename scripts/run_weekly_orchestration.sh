@@ -12,7 +12,8 @@ TEMP_BASE="$PROJECT_ROOT/.temp/weekly"
 RUN_DATE=$(date +%Y-%m-%d)
 DRY_RUN=false
 RERUN=false
-GEMINI_CLI="gemini" # Customizable
+AI_PROVIDER="${AI_PROVIDER:-codex}"
+AI_TIMEOUT_SECONDS="${AI_TIMEOUT_SECONDS:-180}"
 PROMPT_FILE="src/strategy/ai_deduction_prompt.md"
 
 # --- Date Context ---
@@ -80,40 +81,46 @@ docker compose run --rm app python3 scripts/sanitize_weekly_report.py \
   --input "$RUN_DIR_REL/weekly_report.json" \
   --output "$RUN_DIR_REL/weekly_report_sanitized.json"
 
-# Stage 3: Gemini AI Deduction (Search + Synthesis)
-if command -v "$GEMINI_CLI" >/dev/null 2>&1; then
-  if [ "$DRY_RUN" = true ]; then
-    echo "[DRY RUN] Would run: $GEMINI_CLI --prompt \"(Deduction Instructions) for $RUN_DIR/weekly_report_sanitized.json\""
-    echo "# Dry Run Insight (AI Deduction)" > "$RUN_DIR/gemini_insight.md"
-  else
-    echo "[$(date -u)] Stage 3: Gemini AI Interpretation & Research..."
-    
-    # Prepare the combined prompt
-    FULL_PROMPT="请结合以下报告执行深度市场调研并给出最终解读。\n\n报告文件: $RUN_DIR/weekly_report_sanitized.json\n\n分析指令模板:\n$(cat "$PROMPT_FILE" | sed "s/{{MODE}}/$AI_MODE/g")"
-    
-    # Execute Gemini Agent (echo 1 to bypass tool confirmation if needed, though --prompt might be direct)
-    echo 1 | $GEMINI_CLI --prompt "$FULL_PROMPT" --raw-output --accept-raw-output-risk < /dev/null > "$RUN_DIR/gemini_insight.md" 2>/dev/null || {
-      echo "[WARNING] Gemini analysis failed. Using fallback."
-      echo "" > "$RUN_DIR/gemini_insight.md"
-    }
-  fi
+# Stage 3: AI Deduction (Search + Synthesis)
+AI_INSIGHT_REL="$RUN_DIR_REL/ai_insight.md"
+AI_INSIGHT="$RUN_DIR/ai_insight.md"
+AI_STDERR_REL="$RUN_DIR_REL/ai_deduction.stderr.log"
+AI_STDERR="$RUN_DIR/ai_deduction.stderr.log"
+
+if [ "$DRY_RUN" = true ]; then
+  echo "[DRY RUN] Would run: python3 scripts/run_ai_deduction.py --provider $AI_PROVIDER --input $RUN_DIR_REL/weekly_report_sanitized.json"
+  echo "# Dry Run Insight (AI Deduction)" > "$AI_INSIGHT"
+  cp "$AI_INSIGHT" "$RUN_DIR/gemini_insight.md" # Temporary compatibility artifact.
 else
-  echo "[WARNING] Gemini CLI not found. Skipping Stage 3 interpretation."
-  echo "" > "$RUN_DIR/gemini_insight.md"
+  echo "[$(date -u)] Stage 3: AI Interpretation & Research via $AI_PROVIDER..."
+  python3 scripts/run_ai_deduction.py \
+    --provider "$AI_PROVIDER" \
+    --project-root "$PROJECT_ROOT" \
+    --prompt-file "$PROJECT_ROOT/$PROMPT_FILE" \
+    --input "$PROJECT_ROOT/$RUN_DIR_REL/weekly_report_sanitized.json" \
+    --mode "$AI_MODE" \
+    --output "$AI_INSIGHT" \
+    --stderr-log "$AI_STDERR" \
+    --timeout-seconds "$AI_TIMEOUT_SECONDS" || {
+      echo "[WARNING] AI deduction failed. Using fallback."
+      echo "" > "$AI_INSIGHT"
+    }
+  if [ -s "$AI_INSIGHT" ]; then
+    cp "$AI_INSIGHT" "$RUN_DIR/gemini_insight.md" # Temporary compatibility artifact.
+  fi
 fi
 
 # Stage 4: Discord Push
 echo "[$(date -u)] Stage 4: Discord delivery..."
 if [ "$DRY_RUN" = true ]; then
-  echo "[DRY RUN] Would run: python3 src/output/send_insight.py --mode insight --input $RUN_DIR/gemini_insight.md"
+  echo "[DRY RUN] Would run: python3 src/output/send_insight.py --mode insight --input $AI_INSIGHT"
 else
-  if [ -s "$RUN_DIR/gemini_insight.md" ]; then
-    docker compose run --rm app python3 src/output/send_insight.py --mode insight --input "$RUN_DIR_REL/gemini_insight.md" --validated-json "$RUN_DIR_REL/weekly_report_sanitized.json"
+  if [ -s "$AI_INSIGHT" ]; then
+    docker compose run --rm app python3 src/output/send_insight.py --mode insight --input "$AI_INSIGHT_REL" --validated-json "$RUN_DIR_REL/weekly_report_sanitized.json"
     touch "$RUN_DIR/sent_discord.ok"
   else
-    docker compose run --rm app python3 src/output/send_insight.py --mode fallback_error --stage gemini --validated-json "$RUN_DIR_REL/weekly_report_sanitized.json" --message "Gemini analysis failed or was skipped."
+    docker compose run --rm app python3 src/output/send_insight.py --mode fallback_error --stage ai_deduction --validated-json "$RUN_DIR_REL/weekly_report_sanitized.json" --message "AI deduction failed or was skipped."
   fi
 fi
 
 echo "[$(date -u)] Orchestration complete for $RUN_DATE."
-

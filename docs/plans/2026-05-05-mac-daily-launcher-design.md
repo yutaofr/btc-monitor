@@ -19,12 +19,13 @@ Scaffold a native macOS background service to execute the BTC Monitor orchestrat
 
 ### 2.3 Discord Dispatcher (`src/output/send_insight.py`)
 - Upgraded to use `requests` or `urllib` to send raw Markdown content to Discord.
-- Implements `fallback_error` to alert user if data fetching or Gemini analysis fails.
+- Implements `fallback_error` to alert user if data fetching or AI deduction fails.
+- Splits long AI reports into ordered Discord messages and treats partial delivery as failure.
 
 ## 3. Data Flow
 1. `launchd` triggers at 20:00.
 2. Wrapper loads secrets and triggers orchestrator.
-3. Pipeline generates report -> sanitizes -> (Optional) Gemini analyzes.
+3. Pipeline generates report -> sanitizes -> Codex-backed AI deduction wrapper writes `ai_insight.md`.
 4. Dispatcher sends results to Discord.
 
 ## 4. Error Handling
