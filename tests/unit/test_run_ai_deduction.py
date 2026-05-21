@@ -69,3 +69,119 @@ def test_run_codex_provider_writes_output(tmp_path, monkeypatch):
     assert "--output-last-message" in cmd
     assert cwd == str(tmp_path)
     assert timeout == 30
+
+
+def test_unsupported_provider_writes_error(tmp_path):
+    prompt_file, report_file = write_inputs(tmp_path)
+    stderr_log = tmp_path / "stderr.log"
+
+    code = run_ai_deduction.run(
+        provider="gemini",
+        project_root=tmp_path,
+        prompt_file=prompt_file,
+        report_file=report_file,
+        mode="On-demand Insight",
+        output_file=tmp_path / "out.md",
+        stderr_log=stderr_log,
+        timeout_seconds=30,
+    )
+
+    assert code == 2
+    assert "Unsupported AI provider" in stderr_log.read_text(encoding="utf-8")
+
+
+def test_missing_codex_returns_127(tmp_path, monkeypatch):
+    prompt_file, report_file = write_inputs(tmp_path)
+    stderr_log = tmp_path / "stderr.log"
+    monkeypatch.setattr(run_ai_deduction.shutil, "which", lambda name: None)
+
+    code = run_ai_deduction.run(
+        provider="codex",
+        project_root=tmp_path,
+        prompt_file=prompt_file,
+        report_file=report_file,
+        mode="On-demand Insight",
+        output_file=tmp_path / "out.md",
+        stderr_log=stderr_log,
+        timeout_seconds=30,
+    )
+
+    assert code == 127
+    assert "not found" in stderr_log.read_text(encoding="utf-8")
+
+
+def test_codex_timeout_returns_124(tmp_path, monkeypatch):
+    prompt_file, report_file = write_inputs(tmp_path)
+    stderr_log = tmp_path / "stderr.log"
+
+    def fake_run(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=args[0], timeout=kwargs["timeout"])
+
+    monkeypatch.setattr(run_ai_deduction.shutil, "which", lambda name: "/opt/homebrew/bin/codex")
+    monkeypatch.setattr(run_ai_deduction.subprocess, "run", fake_run)
+
+    code = run_ai_deduction.run(
+        provider="codex",
+        project_root=tmp_path,
+        prompt_file=prompt_file,
+        report_file=report_file,
+        mode="On-demand Insight",
+        output_file=tmp_path / "out.md",
+        stderr_log=stderr_log,
+        timeout_seconds=1,
+    )
+
+    assert code == 124
+    assert "timed out" in stderr_log.read_text(encoding="utf-8")
+
+
+def test_codex_nonzero_preserves_stderr(tmp_path, monkeypatch):
+    prompt_file, report_file = write_inputs(tmp_path)
+    stderr_log = tmp_path / "stderr.log"
+
+    def fake_run(cmd, **kwargs):
+        return subprocess.CompletedProcess(cmd, 9, stdout="", stderr="auth failed\n")
+
+    monkeypatch.setattr(run_ai_deduction.shutil, "which", lambda name: "/opt/homebrew/bin/codex")
+    monkeypatch.setattr(run_ai_deduction.subprocess, "run", fake_run)
+
+    code = run_ai_deduction.run(
+        provider="codex",
+        project_root=tmp_path,
+        prompt_file=prompt_file,
+        report_file=report_file,
+        mode="On-demand Insight",
+        output_file=tmp_path / "out.md",
+        stderr_log=stderr_log,
+        timeout_seconds=30,
+    )
+
+    assert code == 9
+    assert "auth failed" in stderr_log.read_text(encoding="utf-8")
+
+
+def test_empty_codex_output_fails(tmp_path, monkeypatch):
+    prompt_file, report_file = write_inputs(tmp_path)
+    output_file = tmp_path / "out.md"
+    stderr_log = tmp_path / "stderr.log"
+
+    def fake_run(cmd, **kwargs):
+        output_file.write_text("   \n", encoding="utf-8")
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(run_ai_deduction.shutil, "which", lambda name: "/opt/homebrew/bin/codex")
+    monkeypatch.setattr(run_ai_deduction.subprocess, "run", fake_run)
+
+    code = run_ai_deduction.run(
+        provider="codex",
+        project_root=tmp_path,
+        prompt_file=prompt_file,
+        report_file=report_file,
+        mode="On-demand Insight",
+        output_file=output_file,
+        stderr_log=stderr_log,
+        timeout_seconds=30,
+    )
+
+    assert code == 1
+    assert "empty output" in stderr_log.read_text(encoding="utf-8")
