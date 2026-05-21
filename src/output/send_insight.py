@@ -5,6 +5,79 @@ import json
 import urllib.request
 from datetime import datetime
 
+
+DISCORD_MAX_CONTENT_BYTES = 1900
+
+
+def byte_len(text):
+    return len(text.encode("utf-8"))
+
+
+def hard_split_text(text, max_bytes):
+    chunks = []
+    current = []
+    current_bytes = 0
+    for char in text:
+        char_bytes = byte_len(char)
+        if current and current_bytes + char_bytes > max_bytes:
+            chunks.append("".join(current))
+            current = []
+            current_bytes = 0
+        current.append(char)
+        current_bytes += char_bytes
+    if current:
+        chunks.append("".join(current))
+    return chunks
+
+
+def split_discord_messages(content, max_bytes=DISCORD_MAX_CONTENT_BYTES):
+    if byte_len(content) <= max_bytes:
+        return [content]
+
+    chunks = []
+    current = ""
+    blocks = content.split("\n\n")
+
+    for index, block in enumerate(blocks):
+        piece = block if index == 0 else "\n\n" + block
+        if byte_len(piece) > max_bytes:
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.extend(hard_split_text(piece.lstrip("\n"), max_bytes))
+            continue
+
+        if current and byte_len(current + piece) > max_bytes:
+            chunks.append(current)
+            current = block
+        else:
+            current += piece
+
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def add_chunk_headers(chunks, title="BTC Monitor AI Report", max_bytes=DISCORD_MAX_CONTENT_BYTES):
+    if len(chunks) == 1:
+        return chunks
+
+    payloads = []
+    total = len(chunks)
+    for index, chunk in enumerate(chunks, start=1):
+        header = f"**{title} ({index}/{total})**\n"
+        budget = max_bytes - byte_len(header)
+        if byte_len(chunk) > budget:
+            split_chunks = hard_split_text(chunk, budget)
+            return add_chunk_headers(
+                chunks[: index - 1] + split_chunks + chunks[index:],
+                title=title,
+                max_bytes=max_bytes,
+            )
+        payloads.append(header + chunk)
+    return payloads
+
+
 def post_to_discord(webhook_url, content, username="BTC Monitor AI"):
     """Sends a raw text/markdown message to Discord via webhook."""
     # Discord content limit is 2000 chars. We'll truncate if necessary.
