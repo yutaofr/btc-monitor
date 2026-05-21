@@ -80,10 +80,6 @@ def add_chunk_headers(chunks, title="BTC Monitor AI Report", max_bytes=DISCORD_M
 
 def post_to_discord(webhook_url, content, username="BTC Monitor AI"):
     """Sends a raw text/markdown message to Discord via webhook."""
-    # Discord content limit is 2000 chars. We'll truncate if necessary.
-    if len(content) > 1900:
-        content = content[:1900] + "\n... (truncated)"
-        
     payload = {
         "content": content,
         "username": username,
@@ -113,6 +109,19 @@ def post_to_discord(webhook_url, content, username="BTC Monitor AI"):
     except Exception as e:
         print(f"[ERROR] Discord post failed: {e}")
         return None
+
+
+def send_content_to_discord(webhook_url, content, max_bytes=DISCORD_MAX_CONTENT_BYTES):
+    chunks = split_discord_messages(content, max_bytes=max_bytes)
+    payloads = add_chunk_headers(chunks, max_bytes=max_bytes)
+
+    for index, payload in enumerate(payloads, start=1):
+        code = post_to_discord(webhook_url, payload)
+        if code is None or code >= 300:
+            print(f"[ERROR] Discord chunk {index}/{len(payloads)} failed with code: {code}")
+            return 1
+    return 0
+
 
 def generate_raw_digest(json_path):
     """Generates a high-fidelity markdown summary from the sanitized JSON."""
@@ -186,7 +195,8 @@ def main():
                 content = "⚠️ **BTC Monitor Report**: AI interpretation unavailable and no sanitized data found."
             
         print(f"[{datetime.now().isoformat()}] Sending Insight to Discord...")
-        post_to_discord(webhook_url, content)
+        exit_code = send_content_to_discord(webhook_url, content)
+        sys.exit(exit_code)
         
     elif args.mode == "fallback_error":
         error_msg = f"## 🚨 BTC Monitor Service Alert\n**Stage**: {args.stage}\n**Error**: {args.message or 'Unknown error during execution.'}\n"
@@ -202,7 +212,8 @@ def main():
                 pass
                 
         print(f"[{datetime.now().isoformat()}] Sending Fallback Error to Discord...")
-        post_to_discord(webhook_url, error_msg)
+        exit_code = send_content_to_discord(webhook_url, error_msg)
+        sys.exit(exit_code)
 
 if __name__ == "__main__":
     main()

@@ -41,3 +41,34 @@ def test_add_chunk_headers_keeps_each_payload_under_limit():
     assert payloads[0].startswith("**BTC Monitor AI Report (1/2)**")
     assert payloads[1].startswith("**BTC Monitor AI Report (2/2)**")
     assert all(payload_bytes(payload) <= 120 for payload in payloads)
+
+
+def test_send_content_posts_all_chunks(monkeypatch):
+    posted = []
+
+    def fake_post(webhook_url, content, username="BTC Monitor AI"):
+        posted.append(content)
+        return 204
+
+    monkeypatch.setattr(send_insight, "post_to_discord", fake_post)
+
+    result = send_insight.send_content_to_discord("https://discord.test", "x" * 300, max_bytes=120)
+
+    assert result == 0
+    assert len(posted) > 1
+    assert posted[0].startswith("**BTC Monitor AI Report (1/")
+
+
+def test_send_content_stops_on_failed_chunk(monkeypatch):
+    posted = []
+
+    def fake_post(webhook_url, content, username="BTC Monitor AI"):
+        posted.append(content)
+        return 500 if len(posted) == 2 else 204
+
+    monkeypatch.setattr(send_insight, "post_to_discord", fake_post)
+
+    result = send_insight.send_content_to_discord("https://discord.test", "x" * 300, max_bytes=120)
+
+    assert result == 1
+    assert len(posted) == 2
