@@ -24,6 +24,13 @@ def test_orchestrator_uses_ai_deduction_stage_for_fallback():
     assert "AI deduction failed or was skipped." in text
 
 
+def test_orchestrator_ai_failure_leaves_zero_byte_insight_for_fallback():
+    text = script_text()
+
+    assert ': > "$AI_INSIGHT"' in text
+    assert 'echo "" > "$AI_INSIGHT"' not in text
+
+
 def test_orchestrator_touches_sent_marker_only_after_successful_send():
     text = script_text()
 

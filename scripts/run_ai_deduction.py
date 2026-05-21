@@ -50,10 +50,10 @@ def run(
 
     cmd = [
         "codex",
+        "--search",
         "exec",
         "--cd",
         str(project_root),
-        "--search",
         "--ephemeral",
         "--output-last-message",
         str(output_file),

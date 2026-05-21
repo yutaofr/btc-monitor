@@ -103,7 +103,7 @@ else
     --stderr-log "$AI_STDERR" \
     --timeout-seconds "$AI_TIMEOUT_SECONDS" || {
       echo "[WARNING] AI deduction failed. Using fallback."
-      echo "" > "$AI_INSIGHT"
+      : > "$AI_INSIGHT"
     }
   if [ -s "$AI_INSIGHT" ]; then
     cp "$AI_INSIGHT" "$RUN_DIR/gemini_insight.md" # Temporary compatibility artifact.

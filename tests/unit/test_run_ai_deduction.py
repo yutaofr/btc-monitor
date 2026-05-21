@@ -63,8 +63,7 @@ def test_run_codex_provider_writes_output(tmp_path, monkeypatch):
     assert output_file.read_text(encoding="utf-8").startswith("# Insight")
     assert calls
     cmd, cwd, timeout = calls[0]
-    assert cmd[:2] == ["codex", "exec"]
-    assert "--search" in cmd
+    assert cmd[:3] == ["codex", "--search", "exec"]
     assert "--ephemeral" in cmd
     assert "--output-last-message" in cmd
     assert cwd == str(tmp_path)
