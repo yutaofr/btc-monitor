@@ -163,7 +163,7 @@ def generate_raw_digest(json_path):
     except Exception as e:
         return f"⚠️ **BTC Monitor**: Error generating raw digest from JSON: {e}"
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description="Discord Insight Dispatcher")
     parser.add_argument("--mode", choices=["insight", "fallback_error"], required=True)
     parser.add_argument("--input", help="Path to gemini_insight.md (for insight mode)")
@@ -171,7 +171,7 @@ def main():
     parser.add_argument("--validated-json", help="Path to sanitized JSON (for fallback_error mode)")
     parser.add_argument("--message", help="Custom error message")
     
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     
     webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
     if not webhook_url:

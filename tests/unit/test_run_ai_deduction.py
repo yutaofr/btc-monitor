@@ -185,3 +185,33 @@ def test_empty_codex_output_fails(tmp_path, monkeypatch):
 
     assert code == 1
     assert "empty output" in stderr_log.read_text(encoding="utf-8")
+
+
+def test_main_passes_cli_args_to_run(tmp_path, monkeypatch):
+    prompt_file, report_file = write_inputs(tmp_path)
+    output_file = tmp_path / "out.md"
+    stderr_log = tmp_path / "stderr.log"
+    received = {}
+
+    def fake_run(**kwargs):
+        received.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(run_ai_deduction, "run", fake_run)
+
+    code = run_ai_deduction.main(
+        [
+            "--provider", "codex",
+            "--project-root", str(tmp_path),
+            "--prompt-file", str(prompt_file),
+            "--input", str(report_file),
+            "--mode", "On-demand Insight",
+            "--output", str(output_file),
+            "--stderr-log", str(stderr_log),
+            "--timeout-seconds", "7",
+        ]
+    )
+
+    assert code == 0
+    assert received["timeout_seconds"] == 7
+    assert received["output_file"] == output_file

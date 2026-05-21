@@ -72,3 +72,16 @@ def test_send_content_stops_on_failed_chunk(monkeypatch):
 
     assert result == 1
     assert len(posted) == 2
+
+
+def test_main_returns_nonzero_when_chunk_send_fails(tmp_path, monkeypatch):
+    insight = tmp_path / "ai_insight.md"
+    insight.write_text("x" * 300, encoding="utf-8")
+
+    monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://discord.test")
+    monkeypatch.setattr(send_insight, "send_content_to_discord", lambda *args, **kwargs: 1)
+
+    with pytest.raises(SystemExit) as exc:
+        send_insight.main(["--mode", "insight", "--input", str(insight)])
+
+    assert exc.value.code == 1
