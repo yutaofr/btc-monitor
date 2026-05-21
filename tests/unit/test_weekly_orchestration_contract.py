@@ -17,6 +17,12 @@ def test_orchestrator_calls_ai_deduction_wrapper():
     assert "Gemini AI" not in text
 
 
+def test_orchestrator_allows_research_ai_runtime():
+    text = script_text()
+
+    assert 'AI_TIMEOUT_SECONDS="${AI_TIMEOUT_SECONDS:-600}"' in text
+
+
 def test_orchestrator_uses_ai_deduction_stage_for_fallback():
     text = script_text()
 

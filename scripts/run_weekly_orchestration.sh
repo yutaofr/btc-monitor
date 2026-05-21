@@ -13,7 +13,7 @@ RUN_DATE=$(date +%Y-%m-%d)
 DRY_RUN=false
 RERUN=false
 AI_PROVIDER="${AI_PROVIDER:-codex}"
-AI_TIMEOUT_SECONDS="${AI_TIMEOUT_SECONDS:-180}"
+AI_TIMEOUT_SECONDS="${AI_TIMEOUT_SECONDS:-600}"
 PROMPT_FILE="src/strategy/ai_deduction_prompt.md"
 
 # --- Date Context ---

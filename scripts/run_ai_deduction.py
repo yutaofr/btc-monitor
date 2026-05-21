@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 
-DEFAULT_TIMEOUT_SECONDS = 180
+DEFAULT_TIMEOUT_SECONDS = 600
 
 
 def build_prompt(prompt_file: Path, report_file: Path, mode: str) -> str:

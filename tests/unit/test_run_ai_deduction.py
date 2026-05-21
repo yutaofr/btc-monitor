@@ -7,6 +7,10 @@ import pytest
 from scripts import run_ai_deduction
 
 
+def test_default_timeout_allows_research_ai_runtime():
+    assert run_ai_deduction.DEFAULT_TIMEOUT_SECONDS == 600
+
+
 def write_inputs(tmp_path):
     prompt_file = tmp_path / "ai_deduction_prompt.md"
     prompt_file.write_text("Report mode: {{MODE}}\nReturn Chinese markdown.", encoding="utf-8")
